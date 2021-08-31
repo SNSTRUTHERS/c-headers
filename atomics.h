@@ -1,7 +1,7 @@
 /**
  * @file atomics.h
  * @author Simon Bolivar
- * @date 27 Jul 2021
+ * @date 30 Aug 2021
  * 
  * @brief Cross-compiler atomic operations.
  * 
@@ -917,6 +917,11 @@
  * @param[in,out] a Pointer to an atomic 64-bit unsigned integer.
  * @param[in]     b A 64-bit unsigned integer to write into @e a.
  */
+/**
+ * @fn void atomic_fence(void)
+ * @brief Enforces a hardware memory barrier to prevent the reordering of read
+ *        & write operations.
+ */
 #ifdef _INT64_DEFINED
 #   define __MACRODEFS_ENUMERATE_ATOMICS(macro) \
         macro(int8) macro(uint8) \
@@ -962,7 +967,8 @@
         __has_builtin(__atomic_fetch_sub) && \
         __has_builtin(__atomic_fetch_and) && \
         __has_builtin(__atomic_fetch_or) && \
-        __has_builtin(__atomic_fetch_xor)) /* GCC 4.7+ __atomic builtins */
+        __has_builtin(__atomic_fetch_xor) && \
+        __has_builtin(__atomic_thread_fence)) /* GCC 4.7+ __atomic builtins */
 #       define __GENERATE_ATOMIC_FUNC(x, y) \
             static_inline x ##_t y ##_ ##x ( \
                 volatile atomic_ ##x* a, \
@@ -1021,6 +1027,9 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+        static_force_inline void atomic_fence(void) {
+            __atomic_thread_fence(__ATOMIC_ACQ_REL);
+        }
 #       undef __GENERATE_ATOMIC_FUNCS
 #       undef __GENERATE_ATOMIC_FUNC
 #   elif GCC_PREREQ(1) /* GCC legacy __sync builtins */
@@ -1082,6 +1091,9 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+        static_force_inline void atomic_fence(void) {
+            __sync_synchronize();
+        }
 #       pragma GCC diagnostic pop
 #       undef __GENERATE_ATOMIC_FUNCS
 #       undef __GENERATE_ATOMIC_FUNC
@@ -1213,6 +1225,20 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+        static_force_inline void atomic_fence(void) {
+#           ifdef __amd64__
+#               __faststorefence();
+#           elif defined(__ia64__)
+#               __mf();
+#           elif defined(__i386__)
+                long barrier;
+                __asm { xchg Barrier, eax }
+#           elif defined(__arm__)
+                __dmb(_ARM_BARRIER_SY);
+#           elif defined(__aarch64__)
+                __dmb(_ARM64_BARRIER_SY);
+#           endif
+        }
 #       undef __MSVC_ATOMIC_SUFFIX_int8
 #       undef __MSVC_ATOMIC_SUFFIX_uint8
 #       undef __MSVC_ATOMIC_SUFFIX_int16
@@ -1307,28 +1333,6 @@
             value [eax] \
             modify exact [eax];
 #       ifdef _INT64_DEFINED /* TODO: 64-bit Watcom auxilaries */
-#           pragma aux atomic_exchange_int64 = \
-                "lock xchg [ecx], rax" \
-                parm [ecx] [rax] \
-                value [rax] \
-                modify exact [rax];
-#           pragma aux atomic_exchange_uint64 = \
-                "lock xchg [ecx], rax" \
-                parm [ecx] [rax] \
-                value [rax] \
-                modify exact [rax];
-#           pragma aux atomic_load_int64 = \
-                "mfence" \
-                "mov [ecx], rax" \
-                parm [ecx] \
-                value [eax] \
-                modify exact [rax];
-#           pragma aux atomic_load_uint64 = \
-                "mfence" \
-                "mov [ecx], rax" \
-                parm [ecx] \
-                value [rax] \
-                modify exact [rax];
 #       endif
 #       define __GENERATE_ATOMIC_FUNCS(x) \
             static_inline void atomic_store_ ##x ( \
@@ -1469,6 +1473,9 @@
 #       undef __GENERATE_ATOMIC_FUNC
 #   endif
 #else /* standard-compliant atomic implementations */
+    static_force_inline void atomic_fence(void) {
+        atomic_thread_fence(memory_order_acq_rel);
+    }
 #   define __GENERATE_OTHER_ATOMIC_FUNCS(x) \
         static_inline x ##_t atomic_load_ ##x ( \
             const volatile atomic_ ##x* a \
