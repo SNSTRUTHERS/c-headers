@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 9 Aug 2021
+ * @date 30 Aug 2021
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -894,6 +894,9 @@
 #   define ARCH_NAME "x64"
 #   ifndef __x86_64__
 #       define __x86_64__ 1
+#   endif
+#   ifndef __amd64__
+#       define __amd64__ 1
 #   endif
 #   ifndef __SSE2__
 #       define __SSE2__ 1
