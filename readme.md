@@ -61,3 +61,4 @@ Cross-compiler header-only atomic operations library.
       - e.g. an `atomic_exchange` for `atomic_uint16` is called
         `atomic_exchange_uint16`.
       - This is not a problem in C++.
+- Read-write memory synchronization (`atmoic_fence`).
