@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 30 Aug 2021
+ * @date 03 sep 2021
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1884,8 +1884,8 @@
         extern
 #       endif
         NO_RETURN void __assert_handler(
-            const char* cond,
-            const char* file,
+            char const* cond,
+            char const* file,
             int line
         );
 #   if CPP_PREREQ(1L)
@@ -2519,17 +2519,17 @@
 #       define constexpr
 #   endif
         template <typename T>
-        constexpr static_force_inline const T& __macrodefs_min(
-            const T& a,
-            const T& b
+        constexpr static_force_inline T const& __macrodefs_min(
+            T const& a,
+            T const& b
         ) {
             return (a < b) ? a : b;
         }
 
         template <typename T>
-        constexpr static_force_inline const T& __macrodefs_max(
-            const T& a,
-            const T& b
+        constexpr static_force_inline T const& __macrodefs_max(
+            T const& a,
+            T const& b
         ) {
             return (a > b) ? a : b;
         }
