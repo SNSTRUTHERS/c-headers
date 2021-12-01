@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 03 sep 2021
+ * @date 01 Dec 2021
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -241,6 +241,11 @@
 #endif
 #if (defined(OS2) || defined(_OS2) || defined(__TOS_OS2__)) && !defined(__OS2__)
 #   define __OS2__ 1
+#endif
+#if defined(__LP64__) || defined(_LP64) || defined(__64BIT__)
+#   ifndef __LP64__ /* long and void* are 64-bits wide */
+#       define __LP64__ 1
+#   endif
 #endif
 #ifdef __INTEL_COMPILER
 #   if __INTEL_COMPILER == 500
@@ -2137,10 +2142,7 @@
 #   define UINT16_C(val) val
 #   define  INT32_C(val) val
 #   define UINT32_C(val) val ##u
-#   if defined(__LP64__) || defined(_LP64) || defined(__64BIT__)
-#       ifndef __LP64__ /* long and void* are 64-bits wide */
-#           define __LP64__ 1
-#       endif
+#   ifdef __LP64__
         typedef   signed long  int64_t;
         typedef unsigned long uint64_t;
 #       define  INT64_C(val) val ##l
