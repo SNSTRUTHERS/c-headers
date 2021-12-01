@@ -836,8 +836,31 @@
 #   define OS_NAME "NetBSD"
 #elif defined(__Fuchsia__)
 #   define OS_NAME "Fuchsia"
+#elif defined(__QNX__) || defined(__QNXNTO__)
+#   ifdef __QNXNTO__
+#       define OS_NAME "QNX 6+"
+#   else
+#       define OS_NAME "QNX 4"
+#   endif
+#elif defined(_AIX) || defined(__AIX__) || defined(__TOS_AIX__)
+#   ifndef __AIX__
+#       define __AIX__ 1
+#   endif
+#   define OS_NAME "AIX"
+#elif defined(sgi) || defined(__sgi) || defined(__sgi__) || \
+    defined(_SGI_SOURCE) || defined(__IRIX__)
+#   ifndef __IRIX__
+#       define __IRIX__ 1
+#   endif
+#   define OS_NAME "Irix"
 #elif defined(__ros__)
 #   define OS_NAME "Akaros"
+#elif defined(riscos) || defined(__riscos) || defined(__riscos__) || \
+    defined(__RISCOS__)
+#   ifndef __riscos__
+#       define __riscos__ 1
+#   endif
+#   define OS_NAME "RiscOS"
 #elif defined(__APPLE__)
 #   include <TargetConditionals.h>
 #   if !defined(TARGET_OS_SIMULATOR) && defined(TARGET_IPHONE_SIMULATOR)
@@ -847,18 +870,28 @@
 #       define TARGET_OS_WATCH TARGET_OS_NANO
 #   endif
 #   if TARGET_OS_MAC
+#       ifndef __MACOSX__
+#           define __MACOSX__ 1
+#       endif
 #       define OS_NAME "macOS"
 #   elif TARGET_OS_WATCH
 #       define OS_NAME "watchOS"
 #   elif TARGET_OS_TV
+#       ifndef __TVOS__
+#           define __TVOS__ 1
+#       endif
 #       define OS_NAME "tvOS"
 #   elif TARGET_OS_IOS || TARGET_OS_IPHONE
+#       ifndef __IPHONEOS__
+#           define __IPHONEOS__ 1
+#       endif
 #       define OS_NAME "iOS"
 #   elif TARGET_OS_SIMULATOR
 #       define OS_NAME "iOS [simulated]"
 #   endif
 #elif defined(__sun)
-#   if defined(__SVR4) || defined(__svr4__) || defined(__SOLARIS__)
+#   if defined(__SVR4) || defined(__svr4__) || defined(_SYSTYPE_SVR4) || \
+        defined(__SOLARIS__)
 #       ifndef __SOLARIS__
 #           define __SOLARIS__ 1
 #       endif
@@ -872,16 +905,53 @@
 #   define OS_NAME "MSYS"
 #elif defined(__serenity__)
 #   define OS_NAME "Serenity"
+#elif defined(__vita__) || defined(__VITA__)
+#   ifndef __vita__
+#       define __vita__ __VITA__
+#   endif
+#   define OS_NAME "PSVita"
+#elif defined(__PSP__)
+#   define OS_NAME "PSP"
 #elif defined(__WINRT__)
 #   define OS_NAME "WinRT"
 #elif defined(_WIN32)
-#   define OS_NAME "Win32"
+#   ifdef _WIN32_WINNT
+#       if _WIN32_WINNT == 0x0400
+#           define OS_NAME "Win32 (NT 4.0+)"
+#       elif _WIN32_WINNT == 0x0500
+#           define OS_NAME "Win32 (2000+)"
+#       elif _WIN32_WINNT == 0x0501
+#           define OS_NAME "Win32 (XP+)"
+#       elif _WIN32_WINNT == 0x0502
+#           define OS_NAME "Win32 (Server 2003+)"
+#       elif _WIN32_WINNT == 0x0600
+#           define OS_NAME "Win32 (Vista+)"
+#       elif _WIN32_WINNT == 0x0601
+#           define OS_NAME "Win32 (7+)"
+#       elif _WIN32_WINNT == 0x0602
+#           define OS_NAME "Win32 (8+)"
+#       elif _WIN32_WINNT == 0x0603
+#           define OS_NAME "Win32 (8.1+)"
+#       elif _WIN32_WINNT == 0x0a00
+#           define OS_NAME "Win32 (10+)"
+#       endif
+#   endif
+#   ifndef OS_NAME
+#       define OS_NAME "Win32"
+#   endif
 #elif defined(__OS2__)
 #   define OS_NAME "OS/2"
+#elif defined(__BEOS__)
+#   define OS_NAME "BeOS"
+#elif defined(__HAIKU__)
+#   define OS_NAME "Haiku"
+#elif defined(AMIGA) || defined(__amigaos__)
+#   ifndef __amigaos__
+#       define __amigaos__ 1
+#   endif
+#   define OS_NAME "AmigaOS"
 #elif defined(__SYMBIAN32__)
 #   define OS_NAME "Symbian OS"
-#elif defined(__RISCOS__)
-#   define OS_NAME "RiscOS"
 #elif defined(__unix__)
 #   define OS_NAME "Generic Unix"
 #else
