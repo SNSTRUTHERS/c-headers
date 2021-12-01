@@ -1464,6 +1464,10 @@
  * @param[in] msg A message to display.
  */
 /**
+ * @def NO_EXCEPT
+ * @brief Denotes that a function doesn't throw a C++ exception.
+ */
+/**
  * @def NO_RETURN
  * @brief Denotes that a function does not return to the caller.
  */
@@ -1478,11 +1482,16 @@
  *        same inputs).
  */
 /**
+ * @def NOTNULL_PARAMS
+ * @brief Denotes which function parameters are not allowed to be @c NULL in a
+ *        function invocation.
+ */
+/**
  * @def CHECK_RESULT
  * @brief Denotes that a function's return value must be read after evaluation.
  */
 /**
- * @def RETURNS_NOTNULL
+ * @def NOTNULL_RETURN
  * @brief Denotes that a function's return value doesn't return @c NULL.
  */
 /**
@@ -1559,6 +1568,13 @@
 #else
 #   define PURE_FUNC
 #endif
+#if CPP_PREREQ(201103L)
+#   define NO_EXCEPT noexcept
+#elif CPP_PREREQ(1)
+#   define NO_EXCEPT throw()
+#else
+#   define NO_EXCEPT
+#endif
 #if (__has_c_attribute(nodiscard) && STDC_PREREQ(201800L)) || \
     (__has_cpp_attribute(nodiscard) && CPP_PREREQ(201103L))
 #   define CHECK_RESULT [[nodiscard]] /* C2x+ / C++17+ nodiscard */
@@ -1569,22 +1585,28 @@
 #   define _USE_SAL 1
 #endif
 #if GCC_PREREQ(30400) || __has_attribute(returns_nonnull)
-#   define RETURNS_NOTNULL __attribute__((returns_nonnull))
+#   define NOTNULL_RETURN __attribute__((returns_nonnull))
+#endif
+#if GCC_PREREQ(30400) || __has_attribute(nonnull)
+#   define NOTNULL_PARAMS(params) __attribute__((nonnull params))
 #endif
 #ifdef _USE_SAL
 #   ifndef CHECK_RESULT
 #       define CHECK_RESULT _Check_return_
 #   endif
-#   ifndef RETURNS_NOTNULL
-#       define RETURNS_NOTNULL _Ret_notnull_
+#   ifndef NOTNULL_RETURN
+#       define NOTNULL_RETURN _Ret_notnull_
 #   endif
 #   undef _USE_SAL
 #else
 #   ifndef CHECK_RESULT
 #       define CHECK_RESULT
 #   endif
-#   ifndef RETURNS_NOTNULL
-#       define RETURNS_NOTNULL
+#   ifndef NOTNULL_RETURN
+#       define NOTNULL_RETURN
+#   endif
+#   ifndef NOTNULL_PARAMS
+#       define NOTNULL_PARAMS
 #   endif
 #endif
 #if __has_attribute(format) /* GCC3 printf/scanf attrs */
