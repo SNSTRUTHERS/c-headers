@@ -1718,6 +1718,20 @@
 #   define NOTNULL
 #endif
 
+/**
+ * @def ARRPARAM(name, specifiers, size)
+ * @brief Denotes a pointer parameter should be taken as an array.
+ * 
+ * @param name       The name of the parameter
+ * @param specifiers Pointer attributes & specifiers (e.g. NOTNULL, restrict)
+ * @param size       Number of elements the array should contain. Can be blank.
+ */
+#if STDC_PREREQ(199901L)
+#   define ARRPARAM(name, specifiers, size) name[specifiers size]
+#else
+#   define ARRPARAM(name, specifiers, size) *specifiers name
+#endif
+
 /* == COMPILER HINTS ======================================================== */
 
 /**
