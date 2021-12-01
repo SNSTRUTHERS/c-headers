@@ -22,7 +22,7 @@ General-use definitions, annotations, and macro definitions.
     you're compiling for IA-32/x86.
 - Compiler feature detection (`__has_attribute`, `__has_declspec_attribute`,
 etc.).
-- Cross-compiler compatible function, typedef, and parameter attributes.
+- Cross-compiler compatible function, typedef, pointer, and parameter attributes.
   - `ALLOCATOR` to denote an associated free function for a given allocation
     function.
   - `CHECK_RESULT` to enforce `if (error) { HANDLE }` on lazy devs.
@@ -31,7 +31,8 @@ etc.).
   - `DEPRECATED` to force people off of old and/or insecure API calls.
   - `NO_RETURN` to denote a function which doesn't return to the caller.
   - `RETURNS_NONNULL` to enforce a lack of billion dollar mistakes.
-- Keywords unavailabe in older language variants.
+  - `NULLABLE` and `NOTNULL` for pointers.
+- Keywords unavailable in older language variants.
   - `inline` in C89.
   - `restrict` in C89 or C++.
 - Cross-OS and C89/C++03-safe drop-ins for `<stdint.h>`, `<inttypes.h>`,
