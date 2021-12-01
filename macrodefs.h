@@ -1702,6 +1702,22 @@
 #   define MAYBE_UNUSED
 #endif
 
+/**
+ * @def NULLABLE
+ * @brief Denotes a nullable pointer parameter.
+ */
+/**
+ * @def NONNULL
+ * @brief Denotes a nullable pointer parameter.
+ */
+#ifdef __clang__
+#   define NULLABLE _Nullable
+#   define NOTNULL _Nonnull
+#else
+#   define NULLABLE
+#   define NOTNULL
+#endif
+
 /* == COMPILER HINTS ======================================================== */
 
 /**
