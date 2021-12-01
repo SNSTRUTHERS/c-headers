@@ -1357,40 +1357,43 @@
 
 /**
  * @def EXPORT
- * @brief Annotates a function to be exported when built via a dynamic library
- *        or imported when including a dynamic library.
+ * @brief Annotates a function to be exported when building a dynamic library.
+ */
+/**
+ * @def IMPORT
+ * @brief Annotates a function to be imported from a dynamic library.
  */
 /**
  * @def LOCAL
- * @brief Annotates a function or class as non-exported/local.
+ * @brief Annotates a function to not be exported when building a dynamic
+ *        library.
  */
 #if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-    defined(__CYGWIN__) || \
-    (defined(DLBUILD) && __has_declspec_attribute(dllexport)) || \
-    (defined(DLIMPORT) && __has_declspec_attribute(dllimport))
-#   if defined(DLBUILD)
+    defined(__CYGWIN__) || __has_declspec_attribute(dllexport) || \
+    __has_declspec_attribute(dllimport)
+#   if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
+        defined(__CYGWIN__) || __has_declspec_attribute(dllexport)
 #       define EXPORT __declspec(dllexport)
-#   elif defined(DLIMPORT)
-#       define EXPORT __declspec(dllimport)
-#   else
-#       define EXPORT
 #   endif
-
+#   if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
+        defined(__CYGWIN__) || __has_declspec_attribute(dllimport)
+#       define IMPORT __declspec(dllimport)
+#   endif
 #   define LOCAL
 #elif GCC_PREREQ(40000) || __has_attribute(visibility)
 #   define EXPORT __attribute__((__visibility__("default")))
+#   define IMPORT
 #   define LOCAL  __attribute__((__visibility__("hidden")))
 #else
 #   define EXPORT
+#   define IMPORT
 #   define LOCAL
 #endif
 #ifdef __SYMBIAN32__
 #   undef EXPORT
-#   ifdef DLIMPORT
-#       define EXPORT IMPORT_C
-#   else
-#       define EXPORT
-#   endif
+#   define IMPORT
+#   undef IMPORT
+#   define IMPORT IMPORT_C
 #   undef LOCAL
 #   define LOCAL
 #endif
