@@ -1402,49 +1402,33 @@
 
 #if defined(__i386__)
 #   if defined(_MSC_VER) || defined(__DMC__) || defined(__BORLANDC__)
-#       define CDECL(ret, name, params) ret __cdecl name params
-#       define STDCALL(ret, name, params) ret __stdcall name params
-#       define FASTCALL(ret, name, params) ret __fastcall name params
-#       define CDECL_PTR(ret, name, params) ret (__cdecl *name) params
-#       define STDCALL_PTR(ret, name, params) ret (__stdcall *name) params
-#       define FASTCALL_PTR(ret, name, params) ret (__fastcall *name) params
+#       define CDECL __cdecl
+#       define STDCALL __stdcall
+#       define FASTCALL __fastcall
 #       ifdef __DMC__ || (defined(__BORLANDC__) && (__BORLANDC__ < 1400))
 #           undef FASTCALL
-#           undef FASTCALL_PTR
 #       endif
 #   else
 #       if __has_attribute(cdecl)
-#           define CDECL(ret, name, params) \
-                __attribute__((cdecl)) ret name params
-#           define CDECL_PTR(ret, name, params) \
-                ret (__attribute__((cdecl)) *name) params
+#           define CDECL __attribute__((cdecl))
 #       endif
 #       if __has_attribute(stdcall)
-#           define STDCALL(ret, name, params) \
-                __attribute__((stdcall)) ret name params
-#           define STDCALL_PTR(ret, name, params) \
-                ret (__attribute__((stdcall)) *name) params
+#           define STDCALL __attribute__((stdcall))
 #       endif
 #       if __has_attribute(fastcall)
-#           define FASTCALL(ret, name, params) \
-                __attribute__((fastcall)) ret name params
-#           define FASTCALL_PTR(ret, name, params) \
-                ret (__attribute__((fastcall)) *name) params
+#           define FASTCALL __attribute__((fastcall))
 #       endif
 #   endif
 #endif
 
 #ifndef CDECL
-#   define CDECL(ret, name, params) ret name params
-#   define CDECL_PTR(ret, name, params) ret (*name) params
+#   define CDECL
 #endif
 #ifndef STDCALL
-#   define STDCALL(ret, name, params) ret name params
-#   define STDCALL_PTR(ret, name, params) ret (*name) params
+#   define STDCALL
 #endif
 #ifndef FASTCALL
-#   define FASTCALL(ret, name, params) ret name params
-#   define FASTCALL_PTR(ret, name, params) ret (*name) params
+#   define FASTCALL
 #endif
 
 /* == PRAGMA DIRECTIVE ====================================================== */
