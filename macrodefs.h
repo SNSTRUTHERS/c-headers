@@ -2000,6 +2000,28 @@
 #   define ASSERT_NOT_REACHED() UNREACHABLE()
 #endif
 
+/* == DEBUG BREAKPOINTS ===================================================== */
+
+#if MSVC_PREREQ(1000)
+    extern void CDECL __debugbreak(void);
+#   define BREAKPOINT() __debugbreak()
+#elif GCC_PREREQ(1) && (defined(__i386__) || defined(__x86_64__))
+#   define BREAKPOINT() __asm__ __volatile__ ( "int $3\n\t" )
+#elif GCC_PREREQ(1) && defined(__APPLE__) && defined(__aarch64__)
+#   define BREAKPOINT() __asm__ __volatile__ ( "brk #22\n\t" )
+#elif GCC_PREREQ(1) && defined(__APPLE__) && defined(__arm__)
+#   define BREAKPOINT() __asm__ __volatile__ ( "bkpt #22\n\t" )
+#elif defined(__WATCOMC__) && defined(__i386__)
+#   define BREAKPOINT() do { _asm { int 0x03} } while (0)
+#elif !defined(__WATCOMC__)
+#   include <signal.h>
+#   ifdef SIGTRAP
+#       define BREAKPOINT() raise(SIGTRAP)
+#   else
+#       define BREAKPOINT()
+#   endif
+#endif
+
 /* == FUNCTION NAME IDENTIFIERS ============================================= */
 
 /**
