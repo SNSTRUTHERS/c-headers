@@ -233,6 +233,22 @@
     defined(__WIN64__)) && !defined(_WIN64)
 #   define _WIN64 1
 #endif
+#if (defined(_WIN32) || defined(__MINGW32__)) && !defined(__WINRT__)
+#   if defined(__has_include) && __has_include(<winapifamily.h>)
+#       define _HAS_WINAPIFAMILY 1
+#   elif MSVC_PREREQ(1700) && !_USING_V110_SDK71_
+#       define _HAS_WINAPIFAMILY 1
+#   endif
+#   ifdef _HAS_WINAPIFAMILY
+#       undef _HAS_WINAPIFAMILY
+#       include <winapifamily.h>
+#       if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && \
+            WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+#           define __WINRT__ 1
+#       endif
+#   endif
+#   endif
+#endif
 #if (defined(unix) || defined(__unix)) && !defined(__unix__)
 #   define __unix__ 1
 #endif
@@ -913,7 +929,7 @@
 #elif defined(__PSP__)
 #   define OS_NAME "PSP"
 #elif defined(__WINRT__)
-#   define OS_NAME "WinRT"
+#   define OS_NAME "Universal Windows Platform"
 #elif defined(_WIN32)
 #   ifdef _WIN32_WINNT
 #       if _WIN32_WINNT == 0x0400
