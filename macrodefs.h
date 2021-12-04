@@ -728,6 +728,8 @@
 #       define __MACRODEFS_MSVC "2019 16.9"
 #   elif _MSC_VER == 1929
 #       define __MACRODEFS_MSVC "2019 16.10"
+#   elif _MSC_VER == 1930
+#       define __MACRODEFS_MSVC "2022 17.0"
 #   endif
 #   ifdef __MACRODEFS_MSVC
 #       define COMPILER_NAME "Microsoft Visual C/C++ " __MACRODEFS_MSVC
