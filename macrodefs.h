@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 01 Dec 2021
+ * @date 03 Dec 2021
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -246,7 +246,6 @@
             WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
 #           define __WINRT__ 1
 #       endif
-#   endif
 #   endif
 #endif
 #if (defined(unix) || defined(__unix)) && !defined(__unix__)
@@ -2014,12 +2013,31 @@
 #   endif
 #       ifdef EXTERN_ASSERT_HANDLER
         extern
+#       elif !defined(CUSTOM_ASSERT_HANDLER)
+#       include <stdio.h>
+#       include <stdlib.h>
+        NO_RETURN static_force_inline
 #       endif
-        NO_RETURN void __assert_handler(
+        void __assert_handler(
             char const* cond,
             char const* file,
             int line
-        );
+        )
+#       if !defined(CUSTOM_ASSERT_HANDLER)
+        {
+#       if defined(_WIN32) && !defined(__WINRT__)
+#       else
+#       endif
+            fprintf(
+                stderr,
+                "Assertion failed in %s@%d: \"%s\"\n",
+                file, line, cond
+            );
+            exit(EXIT_FAILURE);
+        }
+#       else
+        ;
+#       endif
 #   if CPP_PREREQ(1L)
     }
 #   endif
