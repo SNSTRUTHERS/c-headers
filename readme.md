@@ -34,7 +34,7 @@ etc.).
   - `NULLABLE` and `NOTNULL` for pointers.
 - Keywords unavailable in older language variants.
   - `inline` in C89.
-  - `restrict` in C89 or C++.
+  - `__restrict` in C89 or C++.
 - Cross-OS and C89/C++03-safe drop-ins for `<stdint.h>`, `<inttypes.h>`,
   `<stdbool.h>`, and `<endian.h>`.
   - Standard boolean type (`bool`).
