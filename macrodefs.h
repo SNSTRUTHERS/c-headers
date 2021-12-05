@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 03 Dec 2021
+ * @date 04 Dec 2021
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1789,17 +1789,15 @@
 /* == RESTRICT KEYWORD ====================================================== */
 
 /**
- * @def restrict
+ * @def __restrict
  * @brief Hints that a pointer isn't aliased by another variable.
  */
-#if CPP_PREREQ(1L) || !defined(__STDC_VERSION__) || (__STDC_VERSION__ < 199901L)
-#   if MSVC_PREREQ(1)
-#       define restrict __restrict
-#   elif GCC_PREREQ(1)
-#       define restrict __restrict__
-#   else
-#       define restrict
-#   endif
+#if STDC_PREREQ(199901L)
+#   define __restrict restrict
+#elif GCC_PREREQ(1)
+#   define __restrict __restrict__
+#else
+#   define __restrict
 #endif
 
 /* == THREAD LOCAL KEYWORD ================================================== */
