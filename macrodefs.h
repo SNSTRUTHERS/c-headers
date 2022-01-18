@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 04 Dec 2021
+ * @date 17 Jan 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1547,7 +1547,8 @@
 #else
 #   define ALLOCATOR(deallocator)
 #endif
-#if __has_c_attribute(deprecated) || __has_cpp_attribute(deprecated)
+#if (__has_c_attribute(deprecated) && STDC_PREREQ(201800L)) || \
+    (__has_cpp_attribute(deprecated) && CPP_PREREQ(201103L))
 #   define DEPRECATED(msg) [[deprecated(msg)]]
 #elif GCC_PREREQ(30100) || __has_attribute(depreceated)
 #   if __has_extension(attribute_deprecated_with_message)
