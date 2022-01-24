@@ -5,7 +5,7 @@
  * 
  * @brief Cross-compiler atomic operations.
  * 
- * @copyright LGPL3
+ * @copyright LGPL-3.0
  */
 
 #ifndef ATOMICS_H_

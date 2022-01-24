@@ -6,7 +6,7 @@
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
  * 
- * @copyright LGPL3
+ * @copyright LGPL-3.0
  */
 
 #ifndef MACRODEFS_H_
