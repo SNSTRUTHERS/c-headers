@@ -73,3 +73,18 @@ Cross-compiler multiplatform cooperative multitasking library.
 ### Features
 - Stackful coroutines using fibers.
 
+## `thread.h`
+Multiplatform header-only C11-compatible threading library.
+
+### Dependencies
+- `macrodefs.h`
+
+### Features
+- Threads (`thrd_t`)
+- Mutexes (`mtx_t`)
+- Condition variables (`cnd_t`)
+- Semaphores (`sem_t`)
+- Thread-local storage (`tss_t`, `tss_dtor_t`)
+- Hint for how many concurrent threads are available
+  (`thrd_hardware_concurrency`), like the C++11 thread method of a similar name.
+
