@@ -63,3 +63,13 @@ Cross-compiler header-only atomic operations library.
         `atomic_exchange_uint16`.
       - This is not a problem in C++.
 - Read-write memory synchronization (`atmoic_fence`).
+
+## `coro.h`
+Cross-compiler multiplatform cooperative multitasking library.
+
+### Dependencies
+- `macrodefs.h`
+
+### Features
+- Stackful coroutines using fibers.
+
