@@ -36,6 +36,7 @@
 #define CORO_H_
 
 #include "macrodefs.h"
+#include <cstdlib>
 #include <stdlib.h>
 
 /**
@@ -418,9 +419,9 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
             }
 
 #           define __CORO_CTX_INIT(coro, ctx, func, stack, param) do { \
-                (ctx)->regs[0] = (uintptr_t)__extension__(void*)(func); \
-                (ctx)->regs[1] = (uintptr_t)(stack); \
-                (ctx)->regs[2] = (param); \
+                (ctx).regs[0] = (uintptr_t)__extension__(void*)(func); \
+                (ctx).regs[1] = (uintptr_t)(stack); \
+                (ctx).regs[2] = (param); \
                 stack[0] = 0; \
                 stack[1] = 0; \
                 stack[2] = 0; \
@@ -483,9 +484,9 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
                 );
 
 #           define __CORO_CTX_INIT(coro, ctx, func, stack, param) do { \
-                (ctx)->regs[0] = (uintptr_t)__extension__(void*)(func); \
-                (ctx)->regs[1] = (uintptr_t)(stack); \
-                (ctx)->regs[2] = (param); \
+                (ctx).regs[0] = (uintptr_t)__extension__(void*)(func); \
+                (ctx).regs[1] = (uintptr_t)(stack); \
+                (ctx).regs[2] = (param); \
                 stack[0] = 0; \
                 stack[1] = 0; \
                 stack[2] = 0; \
@@ -785,7 +786,7 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
 #               define __CORO_JMPBUF(buf, x) \
                     ((buf)->__jmpbuf)[((sizeof(__jmp_buf)/sizeof(int))-2)+(x)]
 #           elif defined(__APPLE__) /* iOS */
-#               define __CORO_JMPBUF (buf)[7+(x)])
+#               define __CORO_JMPBUF (buf)[7+(x)]
 #           endif
 #           ifdef __CORO_JMPBUF
 #               define __CORO_CTX_PATCH(coro, buf, func, stack, param) do { \
