@@ -86,7 +86,7 @@
     };
     
 #   if !defined(__WINRT__) || (_WIN32_WINNT < 0x602)
-        typedef struct sem_u {
+        typedef union sem_u {
             HANDLE kern;
             LONG volatile atom;
         } sem_t;
