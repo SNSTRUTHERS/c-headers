@@ -36,8 +36,11 @@
 #define CORO_H_
 
 #include "macrodefs.h"
-#include <cstdlib>
-#include <stdlib.h>
+#if CPP_PREREQ(1L)
+#   include <cstdlib>
+#else
+#   include <stdlib.h>
+#endif
 
 /**
  * @brief A cooperative thread.
