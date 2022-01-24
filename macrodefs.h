@@ -2687,7 +2687,7 @@
 #       define constexpr
 #   endif
         template <typename T>
-        constexpr static_force_inline T const& __macrodefs_min(
+        constexpr static_force_inline T const __macrodefs_min(
             T const& a,
             T const& b
         ) {
@@ -2695,7 +2695,7 @@
         }
 
         template <typename T>
-        constexpr static_force_inline T const& __macrodefs_max(
+        constexpr static_force_inline T const __macrodefs_max(
             T const& a,
             T const& b
         ) {
