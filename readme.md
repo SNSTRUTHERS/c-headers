@@ -71,10 +71,10 @@ Cross-compiler multiplatform cooperative multitasking library.
 - `macrodefs.h`
 
 ### Features
-- Stackful coroutines using fibers.
+- Stackful coroutines (`Coro_Fiber`).
 
 ## `thread.h`
-Multiplatform header-only C11-compatible threading library.
+Multiplatform header-only C11-compatible preemptive multitasking library.
 
 ### Dependencies
 - `macrodefs.h`
