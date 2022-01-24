@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 17 Jan 2022
+ * @date 23 Jan 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1385,15 +1385,15 @@
  * @brief Annotates a function to not be exported when building a dynamic
  *        library.
  */
-#if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-    defined(__CYGWIN__) || __has_declspec_attribute(dllexport) || \
-    __has_declspec_attribute(dllimport)
-#   if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-        defined(__CYGWIN__) || __has_declspec_attribute(dllexport)
+#if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
+    defined(__CYGWIN__)) && (__has_declspec_attribute(dllexport) || \
+    __has_declspec_attribute(dllimport))
+#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
+        defined(__CYGWIN__)) && __has_declspec_attribute(dllexport)
 #       define EXPORT __declspec(dllexport)
 #   endif
-#   if defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-        defined(__CYGWIN__) || __has_declspec_attribute(dllimport)
+#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
+        defined(__CYGWIN__)) && __has_declspec_attribute(dllimport)
 #       define IMPORT __declspec(dllimport)
 #   endif
 #   define LOCAL
