@@ -1,7 +1,7 @@
 /**
  * @file thread.h
  * @author Simon Bolivar
- * @date 05 Nov 2021
+ * @date 23 Jan 2022
  * 
  * @brief Standard C11 library compatible threading header.
  * 
@@ -132,7 +132,7 @@
 #   define __TIMESPEC_TO_MS(ts) ( \
         ((ts)->tv_sec * 1000u) + ((ts)->tv_nsec / 1000000) \
     )
-#   define TSS_DTOR_SETUP() extern __tss_dtor_entry __tss_dtor_table[64]
+#   define TSS_DTOR_SETUP() __tss_dtor_entry __tss_dtor_table[64]
 
 /* ---- thread API ---------------------------------------------------------- */
 

@@ -80,11 +80,15 @@ Multiplatform header-only C11-compatible threading library.
 - `macrodefs.h`
 
 ### Features
-- Threads (`thrd_t`)
-- Mutexes (`mtx_t`)
-- Condition variables (`cnd_t`)
-- Semaphores (`sem_t`)
-- Thread-local storage (`tss_t`, `tss_dtor_t`)
+- Threads (`thrd_t`).
+- Mutexes (`mtx_t`).
+- Condition variables (`cnd_t`).
+- Semaphores (`sem_t`).
+- Thread-local storage (`tss_t`, `tss_dtor_t`).
+  - To guarantee it functions across platforms, you must place
+    `TSS_DTOR_SETUP()` somewhere in the global scope in one (and only one) of
+    the source files compiled using this header.
 - Hint for how many concurrent threads are available
-  (`thrd_hardware_concurrency`), like the C++11 thread method of a similar name.
+  (`thrd_hardware_concurrency`).
+  - Acts like C++11's `thread::hardware_concurrency`.
 
