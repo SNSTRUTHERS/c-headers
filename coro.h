@@ -889,7 +889,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
 #ifdef _USES_WINFIBERS
 #   undef _USES_WINFIBERS
 #else
-#   if defined(USE_VALGRIND) || __has_include(<valigrind/valgrind.h>)
+#   if defined(CORO_USE_VALGRIND) || __has_include(<valgrind/valgrind.h>)
+#       include <valgrind/valgrind.h>
 #       define __CORO_VREG(coro, p, s) \
             (coro)->vid = VALGRIND_STACK_REGISTER((p), (p) + (sz));
 #       define __CORO_VUNREG(coro) VALGRIND_STACK_DEREGISTER((coro)->vid);

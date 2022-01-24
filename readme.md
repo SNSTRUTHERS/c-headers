@@ -72,6 +72,9 @@ Cross-compiler multiplatform cooperative multitasking library.
 
 ### Features
 - Stackful coroutines (`Coro_Fiber`).
+- Valgrind compatibility.
+  - Define `CORO_USE_VALGRIND` before including header if your compiler cannot
+    find `valgrind/valgrind.h`.
 
 ## `thread.h`
 Multiplatform header-only C11-compatible preemptive multitasking library.
