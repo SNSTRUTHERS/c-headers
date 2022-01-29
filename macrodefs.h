@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 23 Jan 2022
+ * @date 29 Jan 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1527,7 +1527,7 @@
  */
 #if __has_attribute(malloc)
     /* GCC 11+ has extended malloc attribute w/ specified deallocator */
-#   if GCC_PREREQ(110000)
+#   if GCC_PREREQ(110000) && !defined(__INTELLISENSE__)
 #       define ALLOCATOR(deallocator) \
             __attribute__((malloc, malloc(deallocator)))
 #   else
