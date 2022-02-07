@@ -890,6 +890,9 @@
 #       ifndef __MACOSX__
 #           define __MACOSX__ 1
 #       endif
+#       ifndef __unix__
+#           define __unix__ 1
+#       endif
 #       define OS_NAME "macOS"
 #   elif TARGET_OS_WATCH
 #       define OS_NAME "watchOS"
