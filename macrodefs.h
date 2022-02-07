@@ -2690,37 +2690,78 @@
 #       define constexpr
 #   endif
         template <typename T>
-        constexpr static_force_inline T const __macrodefs_min(
-            T const& a,
-            T const& b
-        ) {
+        constexpr static_force_inline T __macrodefs_min(T a, T b) {
             return (a < b) ? a : b;
         }
 
         template <typename T>
-        constexpr static_force_inline T const __macrodefs_max(
-            T const& a,
-            T const& b
-        ) {
+        constexpr static_force_inline T __macrodefs_max(T a, T b) {
             return (a > b) ? a : b;
         }
 #   if !CPP_PREREQ(201103L)
 #       undef constexpr
+#   else
+#       include <cmath>
+
+        template <>
+        constexpr static_force_inline float __macrodefs_min(
+            float a,
+            float b
+        ) {
+            return std::fminf(a, b);
+        }
+        template <>
+        constexpr static_force_inline double __macrodefs_min(
+            double a,
+            double b
+        ) {
+            return std::fmin(a, b);
+        }
+        template <>
+        constexpr static_force_inline long double __macrodefs_min(
+            long double a,
+            long double b
+        ) {
+            return std::fminl(a, b);
+        }
+
+        template <>
+        constexpr static_force_inline float __macrodefs_max(
+            float a,
+            float b
+        ) {
+            return std::fmaxf(a, b);
+        }
+        template <>
+        constexpr static_force_inline double __macrodefs_max(
+            double a,
+            double b
+        ) {
+            return std::fmax(a, b);
+        }
+        template <>
+        constexpr static_force_inline long double __macrodefs_max(
+            long double a,
+            long double b
+        ) {
+            return std::fmaxl(a, b);
+        }
 #   endif
 #   define MIN(a, b) __macrodefs_min(a, b)
 #   define MAX(a, b) __macrodefs_max(a, b)
 #elif GCC_PREREQ(1) /* GNU C minmax */
 #   define MIN(a, b) __extension__ ({ \
-        __typeof__(a + b) _a = (__typeof__(a + b))(a); \
-        __typeof__(a + b) _b = (__typeof__(a + b))(b); \
+        __typeof__(a) _a = (__typeof__(a))(a); \
+        __typeof__(a) _b = (__typeof__(a))(b); \
         (_a < _b) ? _a : _b; \
     })
 #   define MAX(a, b) __extension__ ({ \
-        __typeof__(a + b) _a = (__typeof__(a + b))(a); \
-        __typeof__(a + b) _b = (__typeof__(a + b))(b); \
+        __typeof__(a) _a = (__typeof__(a))(a); \
+        __typeof__(a) _b = (__typeof__(a))(b); \
         (_a > _b) ? _a : _b; \
     })
-#elif STDC_PREREQ(201112L) /* C11+ minmax */
+#elif STDC_PREREQ(201112L) /* C11+ minmax + C99+ fmin/fmax */
+#   include <math.h>
 #   define __ENUMERATE_MINMAX_FUNCTIONS(macro) \
         macro(signed char,                b) \
         macro(unsigned char,             ub) \
@@ -2732,10 +2773,7 @@
         macro(signed long int,            l) \
         macro(unsigned long int,         ul) \
         macro(signed long long int,      ll) \
-        macro(unsigned long long int,   ull) \
-        macro(float,                      f) \
-        macro(double,                     d) \
-        macro(long double,               ld)
+        macro(unsigned long long int,   ull)
 #   define __GENERATE_MINMAX_FUNCTIONS(type, suffix) \
         static_force_inline type __macrodefs_min_ ##suffix(type a, type b) { \
             return (a < b) ? a : b; \
@@ -2752,10 +2790,16 @@
         type: __macrodefs_max_ ##suffix,
 #   define MIN(a, b) (_Generic((a), \
         __ENUMERATE_MINMAX_FUNCTIONS(__GENERATE_GENERICSEL_LABEL_MIN) \
+        float: fminf, \
+        double: fmin, \
+        long double: fminl, \
         default: __macrodefs_min_p \
     )((a), (b)))
 #   define MAX(a, b) (_Generic((a), \
         __ENUMERATE_MINMAX_FUNCTIONS(__GENERATE_GENERICSEL_LABEL_MAX) \
+        float: fmaxf, \
+        double: fmax, \
+        long double: fmaxl, \
         default: __macrodefs_max_p \
     )((a), (b)))
 #else /* legacy/janky minmax */
