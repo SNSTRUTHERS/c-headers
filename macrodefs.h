@@ -2098,31 +2098,6 @@
 #   define __PRETTY_FUNCTION__ __func__
 #endif
 
-/* == STANDARD BOOLEAN TYPE ================================================= */
-
-/**
- * @def bool
- * @brief A type which can store only two values: @c true or @c false.
- */
-/**
- * @def true
- * @brief Expands to boolean value 1.
- */
-/**
- * @def false
- * @brief Expands to boolean value 0.
- */
-#if !CPP_PREREQ(1L)
-#   if STDC_PREREQ(199901L) || MSVC_PREREQ(1800) || __has_include(<stdbool.h>)
-#       include <stdbool.h> /* C99+/MSVC 1800+ */
-#   else
-        typedef uint8_t __macrodef_bool;
-#       define bool  __macrodef_bool
-#       define false ((bool)0)
-#       define true  ((bool)1)
-#   endif
-#endif
-
 /* == STANDARD SIZED INTEGER TYPES ========================================== */
 
 /**
@@ -2661,6 +2636,31 @@
 
 #ifndef SIZE_MAX
 #   define SIZE_MAX ((size_t)-1)
+#endif
+
+/* == STANDARD BOOLEAN TYPE ================================================= */
+
+/**
+ * @def bool
+ * @brief A type which can store only two values: @c true or @c false.
+ */
+/**
+ * @def true
+ * @brief Expands to boolean value 1.
+ */
+/**
+ * @def false
+ * @brief Expands to boolean value 0.
+ */
+#if !CPP_PREREQ(1L)
+#   if STDC_PREREQ(199901L) || MSVC_PREREQ(1800) || __has_include(<stdbool.h>)
+#       include <stdbool.h> /* C99+/MSVC 1800+ */
+#   else
+        typedef uint8_t __macrodef_bool;
+#       define bool  __macrodef_bool
+#       define false ((bool)0)
+#       define true  ((bool)1)
+#   endif
 #endif
 
 /* == MINMAX MACROS ========================================================= */
