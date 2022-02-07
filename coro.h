@@ -915,21 +915,56 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
         size_t alloc_size;
     };
 
-#   define __ALIGNED_END(p, s, t) \
-        ((t*)(((char*)0) + ((((char*)(p)-(char*)0)+(s)-sizeof(t)) & -16)))
-#   define __CORO_INIT(coro, start, param, stksz) do { \
-        if (!((coro)->alloc_ptr = malloc(stksz))) \
-            return false; \
-        __CORO_VREG(coro, (coro)->alloc_ptr, stksz) \
-        coro->alloc_size = (stksz); \
-        __CORO_SETUP(coro, param, start) \
-        return true; \
-    } while (0)
-#   define __CORO_DESTROY(coro) { \
-        __CORO_VUNREG(coro) \
-        free((coro)->alloc_ptr); \
-        (coro)->alloc_ptr = NULL; \
-    }
+#   ifdef __unix__
+#       include <sys/mman.h>
+#       include <unistd.h>
+#       ifndef MAP_GROWSDOWN
+#           define MAP_GROWSDOWN 0
+#       endif
+
+#       define __ALIGNED_END(p, s, t) \
+            ((t*)(((char*)0) + ((((char*)(p)-(char*)0)+(s)-sizeof(t)) & -16)))
+#       define __CORO_INIT(coro, start, param, stksz) do { \
+            if (!pagesize) \
+                pagesize = sysconf(_SC_PAGESIZE); \
+            coro->alloc_size = MAX(stksz, pagesize); \
+            coro->alloc_size = !(coro->alloc_size % pagesize) ? \
+                coro->alloc_size : \
+                coro->alloc_size + \
+                    (pagesize - coro->alloc_size % pagesize); \
+            if (((coro)->alloc_ptr = mmap( \
+                NULL, coro->alloc_size, \
+                PROT_READ | PROT_WRITE, \
+                MAP_ANON | MAP_GROWSDOWN, \
+                0, 0 \
+            )) == MAP_FAILED) \
+                return false; \
+            __CORO_VREG(coro, (coro)->alloc_ptr, stksz) \
+            __CORO_SETUP(coro, param, start) \
+            return true; \
+        } while (0)
+#       define __CORO_DESTROY(coro) { \
+            __CORO_VUNREG(coro) \
+            munmap((coro)->alloc_ptr, (coro)->alloc_size); \
+            (coro)->alloc_ptr = NULL; \
+        }
+#   else
+#       define __ALIGNED_END(p, s, t) \
+            ((t*)(((char*)0) + ((((char*)(p)-(char*)0)+(s)-sizeof(t)) & -16)))
+#       define __CORO_INIT(coro, start, param, stksz) do { \
+            if (!((coro)->alloc_ptr = malloc(stksz))) \
+                return false; \
+            __CORO_VREG(coro, (coro)->alloc_ptr, stksz) \
+            coro->alloc_size = (stksz); \
+            __CORO_SETUP(coro, param, start) \
+            return true; \
+        } while (0)
+#       define __CORO_DESTROY(coro) { \
+            __CORO_VUNREG(coro) \
+            free((coro)->alloc_ptr); \
+            (coro)->alloc_ptr = NULL; \
+        }
+#   endif
 #endif
 
 static void __CORO_STARTDECL __coro_start __CORO_STARTPARAMS {
@@ -943,6 +978,10 @@ static_force_inline bool coro_init(
     uintptr_t param,
     size_t stack_size
 ) {
+#ifdef __unix__
+    static long pagesize;
+#endif
+
     if (!stack_size)
         stack_size = CORO_DEFAULT_STACK_SIZE;
     else if (stack_size < CORO_MIN_STACK_SIZE)
