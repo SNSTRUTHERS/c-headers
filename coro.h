@@ -918,8 +918,11 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
 #   ifdef __unix__
 #       include <sys/mman.h>
 #       include <unistd.h>
-#       ifndef MAP_GROWSDOWN
-#           define MAP_GROWSDOWN 0
+#       ifndef MAP_STACK
+#           define MAP_STACK 0
+#       endif
+#       ifndef MAP_PRIVATE
+#           define MAP_PRIVATE 0
 #       endif
 
 #       define __ALIGNED_END(p, s, t) \
@@ -935,7 +938,7 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
             if (((coro)->alloc_ptr = mmap( \
                 NULL, coro->alloc_size, \
                 PROT_READ | PROT_WRITE, \
-                MAP_ANON | MAP_GROWSDOWN, \
+                MAP_ANON | MAP_STACK | MAP_PRIVATE, \
                 0, 0 \
             )) == MAP_FAILED) \
                 return false; \
