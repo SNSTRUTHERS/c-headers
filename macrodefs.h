@@ -2704,21 +2704,21 @@
 #       include <cmath>
 
         template <>
-        constexpr static_force_inline float __macrodefs_min(
+        constexpr force_inline float __macrodefs_min(
             float a,
             float b
         ) {
             return std::fminf(a, b);
         }
         template <>
-        constexpr static_force_inline double __macrodefs_min(
+        constexpr force_inline double __macrodefs_min(
             double a,
             double b
         ) {
             return std::fmin(a, b);
         }
         template <>
-        constexpr static_force_inline long double __macrodefs_min(
+        constexpr force_inline long double __macrodefs_min(
             long double a,
             long double b
         ) {
@@ -2726,21 +2726,21 @@
         }
 
         template <>
-        constexpr static_force_inline float __macrodefs_max(
+        constexpr force_inline float __macrodefs_max(
             float a,
             float b
         ) {
             return std::fmaxf(a, b);
         }
         template <>
-        constexpr static_force_inline double __macrodefs_max(
+        constexpr force_inline double __macrodefs_max(
             double a,
             double b
         ) {
             return std::fmax(a, b);
         }
         template <>
-        constexpr static_force_inline long double __macrodefs_max(
+        constexpr force_inline long double __macrodefs_max(
             long double a,
             long double b
         ) {
