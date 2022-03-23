@@ -1,7 +1,7 @@
 /**
  * @file thread.h
  * @author Simon Bolivar
- * @date 23 Jan 2022
+ * @date 22 Mar 2022
  * 
  * @brief Standard C11 library compatible threading header.
  * 
@@ -45,11 +45,10 @@
 #   include <sys/time.h>
 #   include <time.h>
 #   include <unistd.h>
-#   ifndef __APPLE__
-#       include <semaphore.h>
-#   else
+#   ifdef __APPLE__
 #       include <sys/sysctl.h>
-#       define _NO_SEM_DEFINITION 1
+#   else
+#       include <semaphore.h>
 #   endif
 #   ifdef _GNU_SOURCE
 #       include <sys/sysinfo.h>
@@ -59,7 +58,6 @@
 #endif
 
 #ifndef __STDC_NO_THREADS__ /* -- c11 implementation ------------------------ */
-#   define THRD_CONV
 #   define TSS_DTOR_SETUP()
 #   define _NO_SEM_DEFINITION 1
 #elif defined(__WINRT__) || defined(_WIN32) /* -- windows implementation ---- */
@@ -110,9 +108,6 @@
     typedef HANDLE thrd_t;
     typedef CRITICAL_SECTION mtx_t;
     typedef DWORD tss_t;
-    typedef struct once_flag {
-        LONG volatile l;
-    } once_flag;
     typedef int (*thrd_start_t)(void*);
     typedef void (*tss_dtor_t)(void*);
     
@@ -123,11 +118,10 @@
     extern __tss_dtor_entry __tss_dtor_table[64];
 
 /* ---- macrodefs ----------------------------------------------------------- */
-    
-#   define THRD_CONV WINAPI
-#   define ONCE_FLAG_INIT { 0 }
+
 #   define TSS_DTOR_ITERATIONS 1
 #   define SEM_VALUE_MAX LONG_MAX
+#   define _NO_CALLONCE_DEFINITION 1
 
 #   define __TIMESPEC_TO_MS(ts) ( \
         ((ts)->tv_sec * 1000u) + ((ts)->tv_nsec / 1000000) \
@@ -523,7 +517,9 @@
                         if (!WaitOnAddress(
                             &sem->atom, &c, sizeof sem->atom, msecs
                         )) {
-                            return thrd_error;
+                            return GetLastError() == ERROR_TIMEDOUT ?
+                                thrd_timedout :
+                                thrd_error;
                         } else {
                             c = sem->atom;
                         }
@@ -539,8 +535,8 @@
     }
     
     static_inline int sem_post(sem_t* sem) {
-            SetLastError(ERROR_INVALID_PARAMETER);
         if (!sem) {
+            SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
         } else
 #   ifdef _NO_WIN8_SEMATOMS
@@ -886,19 +882,6 @@
         TlsFree(key);
     }
 
-/*  ---- call once API ------------------------------------------------------ */
-    
-    static_inline void call_once(once_flag* flag, void (*func)(void)) {
-        if (flag && func) {
-            if (!InterlockedCompareExchange(&flag->l, 1, 0)) {
-                (*func)();
-                InterlockedExchange(&flag->l, 2);
-            } else while (flag->l == 1) {
-                thrd_yield();
-            }
-        }
-    }
-
 /* ---- cleanup ------------------------------------------------------------- */
     
 #   undef __TIMESPEC_TO_MS
@@ -938,7 +921,6 @@
 
 /* ---- macrodefs ----------------------------------------------------------- */
 
-#   define THRD_CONV
 #   define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
 #   define TSS_DTOR_ITERATIONS PTHREAD_DESTRUCTOR_ITERATIONS
 #   define TSS_DTOR_SETUP()
@@ -971,7 +953,7 @@
         struct timespec* remaining
     ) {
         int result = nanosleep(duration, remaining);
-        return (result == -1 && errno != EINTR) ? -errno : result;
+        return (result == -1 && errno != EINTR) ? errno : result;
     }
 
     static_inline void thrd_yield(void) {
@@ -1099,7 +1081,7 @@
 /* ---- condition variable API ---------------------------------------------- */
 
     static_inline int cnd_init(cnd_t* cond) {
-        return pthread_cond_init(cond, 0) ? thrd_error : thrd_success;
+        return pthread_cond_init(cond, NULL) ? thrd_error : thrd_success;
     }
 
     static_inline int cnd_signal(cnd_t* cond) {
@@ -1119,11 +1101,50 @@
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
     ) {
-        switch (pthread_cond_timedwait(cond, mutex, duration)) {
-        case ETIMEDOUT:
-            return thrd_timedout;
+
+        int result;
+
+#   if defined(__APPLE__) && defined(__MACH__)
+        result = pthread_cond_timedwait_relative_np(cond, mutex, duration);
+#   else
+        struct timespec absolute_time;
+#       ifdef __MVS__
+            struct timeval current_time;
+#       endif
+
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            return thrd_error;
+        }
+
+#       ifdef __MVS__
+            gettimeofday(&current_time, NULL);
+            absolute_time.tv_sec = current_time.tv_sec +
+                (absolute_time.tv_usec * 1000 + duration->tv_nsec) / 1000000000;
+            absolute_time.tv_nsec =
+                (absolute_time.tv_usec * 1000 + duration->tv_nsec) % 1000000000;
+#       else
+            clock_gettime(CLOCK_REALTIME, &absolute_time);
+            absolute_time.tv_sec += duration->tv_sec +
+                (absolute_time.tv_nsec + duration->tv_nsec) / 1000000000;
+            absolute_time.tv_nsec += duration->tv_nsec;
+            absolute_time.tv_nsec %= 1000000000;
+#       endif
+
+        do {
+            result = pthread_cond_timedwait(cond, mutex, &absolute_time);
+        } while (result == EINTR);
+#   endif
+
+        errno = result;
+        switch (result) {
         case 0:
             return thrd_success;
+        case ETIMEDOUT:
+            return thrd_timedout;
         default:
             return thrd_error;
         }
@@ -1133,8 +1154,196 @@
         pthread_cond_destroy(cond);
     }
 
+/* ---- semaphore API ------------------------------------------------------- */
+
+#   if defined(__APPLE__) && defined(__MACH__)
+#       include <mach/mach_init.h>
+#       include <mach/semaphore.h>
+#       include <mach/task.h>
+#       ifndef SEM_NAME_LEN
+#           define SEM_NAME_LEN 48
+#       endif
+#       define SEM_VALUE_MAX INT_MAX
+
+        typedef struct {
+            semaphore_t sem;
+            int val;
+        } sem_t;
+
+        static_inline int sem_init(
+            sem_t* sem, int shared, unsigned int value
+        ) {
+            (void)shared;
+
+            switch (semaphore_create(
+                mach_task_self(), &sem->sem, SYNC_POLICY_FIFO, (int)value
+            )) {
+            case KERN_SUCCESS:
+                sem->val = 0;
+                return thrd_success;
+            case KERN_RESOURCE_SHORTAGE:
+                errno = ENOMEM;
+                return thrd_error;
+            default:
+                errno = EINVAL;
+                return thrd_error;
+            }
+        }
+
+        static_inline int sem_destroy(sem_t* sem) {
+            return (!sem || semaphore_destroy(mach_task_self(), sem->sem)) ?
+                thrd_error :
+                thrd_success;
+        }
+
+        static_inline int sem_getvalue(
+            sem_t *__restrict sem,
+            int *__restrict val
+        ) {
+            if (sem) {
+                if (val) *val = sem->val;
+                return thrd_success;
+            }
+
+            errno = EINVAL;
+            return thrd_error;
+        }
+
+        static_inline int sem_trywait(sem_t* sem) {
+            mach_timespec_t ts = { 0, 0 };
+
+            if (!sem) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            switch (semaphore_timedwait(sem->sem, ts)) {
+            case KERN_SUCCESS:
+                return thrd_success;
+            case KERN_OPERATION_TIMED_OUT:
+                errno = EAGAIN;
+                return thrd_error;
+            default:
+                errno = EINVAL;
+                return thrd_error;
+            }
+        }
+
+        static_inline int sem_reltimedwait_np(
+            sem_t *__restrict sem,
+            struct timespec const *__restrict duration
+        ) {
+            mach_timespec_t ts;
+
+            if (!sem ||
+                !duration ||
+                duration->tv_sec < 0 ||
+                duration->tv_nsec < 0 ||
+                duration->tv_nsec >= 1000000000
+            ) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            ts.tv_sec = (unsigned int)duration->tv_sec;
+            ts.tv_nsec = (clock_res_t)duration->tv_nsec;
+
+            switch (semaphore_timedwait(sem->sem, ts)) {
+            case KERN_SUCCESS:
+                return thrd_success;
+            case KERN_OPERATION_TIMED_OUT:
+                errno = ETIMEDOUT;
+                return thrd_error;
+            default:
+                errno = EINVAL;
+                return thrd_error;
+            }
+        }
+
+        static_inline int sem_timedwait(
+            sem_t *__restrict sem,
+            struct timespec const *__restrict duration
+        ) {
+            struct timespec relative_time;
+
+            if (!duration ||
+                duration->tv_sec < 0 ||
+                duration->tv_nsec < 0 ||
+                duration->tv_nsec >= 1000000000
+            ) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            clock_gettime(CLOCK_REALTIME, &relative_time);
+            relative_time.tv_nsec -= duration->tv_nsec;
+            relative_time.tv_sec -= duration->tv_sec;
+            if (relative_time.tv_nsec < 0) {
+                relative_time.tv_nsec += 1000000000;
+                relative_time.tv_sec -= 1;
+            }
+            return sem_reltimedwait_np(sem, &relative_time);
+        }
+
+        static_inline int sem_wait(sem_t* sem) {
+            int err;
+
+            if (!sem) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            if (sem->val) sem->val--;
+            do {
+                err = semaphore_wait(sem->sem);
+            } while ((err = KERN_ABORTED));
+
+            if (err) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            return thrd_success;
+        }
+
+        static_inline int sem_post(sem_t* sem) {
+            if (!sem || semaphore_signal(sem->sem)) {
+                errno = EINVAL;
+                return thrd_error;
+            }
+
+            sem->val++;
+            return thrd_success;
+        }
+#   elif defined(__APPLE__) || defined(__MVS__)
+#       define _NO_SEM_DEFINITION 1
+#   elif !defined(__SOLARIS__)
+        static_inline int sem_reltimedwait_np(
+            sem_t *__restrict sem,
+            struct timespec const *__restrict duration
+        ) {
+            struct timespec absolute_time;
+
+            if (!duration ||
+                duration->tv_sec < 0 ||
+                duration->tv_nsec < 0 ||
+                duration->tv_nsec >= 1000000000
+            ) {
+                return thrd_error;
+            }
+
+            clock_gettime(CLOCK_REALTIME, &absolute_time);
+            absolute_time.tv_sec += duration->tv_sec +
+                (absolute_time.tv_nsec + duration->tv_nsec) / 1000000000;
+            absolute_time.tv_nsec += duration->tv_nsec;
+            absolute_time.tv_nsec %= 1000000000;
+
+            return sem_timedwait(sem, &absolute_time);
+        }
+#   endif
+
 /* ---- thread-local storage API -------------------------------------------- */
-    
+
     static_inline int tss_create(tss_t* key, tss_dtor_t destructor) {
         return pthread_key_create(key, destructor) ? thrd_error : thrd_success;
     }
@@ -1169,7 +1378,7 @@
         mtx_t lock;
         cnd_t cond;
     } sem_t;
-    
+
     static_inline int sem_init(sem_t* sem, int shared, unsigned int value) {
         if (!sem || value > SEM_VALUE_MAX) {
             errno = EINVAL;
@@ -1177,7 +1386,7 @@
         } else {
             sem->count = (int)value;
             sem->wait = 0;
-            
+
             if (mtx_init(&sem->lock, mtx_plain) != thrd_success) {
                 goto mtx_lock_fail;
             } else if (cnd_init(&sem->cond) != thrd_success) {
@@ -1185,14 +1394,14 @@
             } else {
                 return thrd_success;
             }
-            
+
         cnd_cond_fail:
             mtx_destroy(&sem->lock);
         mtx_lock_fail:
             return thrd_error;
         }
     }
-    
+
     static_inline int sem_destroy(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
@@ -1201,7 +1410,7 @@
             cnd_broadcast(&sem->cond);
             thrd_yield();
         }
-        
+
         cnd_destroy(&sem->cond);
         mtx_destroy(&sem->lock);
     }
@@ -1210,7 +1419,6 @@
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
-        
         if (!sem) {
             errno = EINVAL;
             return thrd_error;
@@ -1225,7 +1433,7 @@
         } else if (sem->count) {
             sem->count--;
         }
-        
+
         return mtx_unlock(&sem->lock);
     }
     
@@ -1239,7 +1447,7 @@
             int result = thrd_success;
             while (!sem->count && result == thrd_success)
                 result = cnd_wait(&sem->cond, &sem->lock);
-            
+
             sem->wait--;
             if (result == thrd_success) {
                 sem->count--;
@@ -1250,7 +1458,7 @@
             }
         }
     }
-    
+
     static_inline int sem_trywait(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
@@ -1266,7 +1474,7 @@
             return thrd_error;
         }
     }
-    
+
     static_inline int sem_post(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
@@ -1281,7 +1489,7 @@
             return mtx_unlock(&sem->lock);
         }
     }
-    
+
     static_inline int sem_getvalue(
         sem_t *__restrict sem,
         int *__restrict result_out
@@ -1299,6 +1507,206 @@
     }
 #endif
 
+/* -- thread-specific storage ----------------------------------------------- */
+
+#ifdef _NO_TSS_DEFINITION
+#   include <stdlib.h>
+#   include <string.h>
+#   undef _NO_TSS_DEFINITION
+#   define TSS_STORAGE_SIZE 128
+#   define TSS_DTOR_SETUP() \
+        __tss_dtor_entry __tss_storage[TSS_STORAGE_SIZE]; \
+        struct __tss_opt_mtx __tss_mtx
+
+    typedef uint_least32_t tss_t;
+    typedef struct __tss_dtor_entry {
+        void* data;
+        tss_dtor_t dtor;
+    } __tss_dtor_entry;
+    typedef struct __tss_entry {
+        thrd_t thread;
+        __tss_dtor_entry* storage;
+    } __tss_entry;
+    typedef struct __tss_opt_mtx {
+        mtx_t lock;
+        bool enabled;
+    } __tss_opt_mtx;
+
+    extern LOCAL __tss_entry __tss_storage[TSS_STORAGE_SIZE];
+    extern LOCAL __tss_opt_mtx __tss_mtx;
+
+    static int __tss_get_entry(__tss_entry** entry_out, bool alloc) {
+        thrd_t thread;
+        __tss_entry* entry, *blank;
+
+        thread = thrd_current();
+        blank = NULL;
+
+        if (!__tss_mtx.enabled) {
+            int result;
+            if ((result = mtx_init(
+                    &__tss_mtx.lock, mtx_plain)
+            ) != thrd_success) {
+                return result;
+            }
+            __tss_mtx.enabled = true;
+        }
+
+        if (mtx_lock(&__tss_mtx.lock) == thrd_error)
+            return thrd_error;
+
+        for (entry = __tss_storage;
+            entry != &__tss_storage[TSS_STORAGE_SIZE];
+            entry++
+        ) {
+            if (entry->thread == thread) {
+                mtx_unlock(&__tss_mtx.lock);
+                *entry_out = entry;
+                return thrd_success;
+            } else if (!entry->storage) {
+                blank = entry;
+            }
+        }
+
+        if (alloc && !blank) {
+            return thrd_nomem;
+        } else if (alloc) {
+            blank->thread = thread;
+            if (!(blank->storage =
+                    (__tss_dtor_entry*)malloc(sizeof *blank->storage * 64)
+            )) {
+                return thrd_nomem;
+            }
+
+            *entry_out = blank;
+            return thrd_success;
+        }
+
+        mtx_unlock(&__tss_mtx.lock);
+        return thrd_error;
+    }
+
+    void __tss_thrd_exit(void) {
+        __tss_entry* entry;
+        if (__tss_get_entry(&entry, false) == thrd_success) {
+            int i;
+            for (i = 0; i < 64; i++) {
+                if (entry->storage[i].dtor)
+                    entry->storage[i].dtor(entry->storage[i].data);
+            }
+
+            free(entry);
+            __tss_storage[entry - __tss_storage].storage = NULL;
+        }
+    }
+
+    static_inline int tss_create(tss_t* key_out, tss_dtor_t destructor) {
+        __tss_entry* entry;
+        __tss_dtor_entry* dtor_entry;
+        int result;
+
+        if (!key_out) {
+            return thrd_error;
+        } else if ((result = __tss_get_entry(&entry, true)) != thrd_success) {
+            return result;
+        } else if (!destructor) {
+            destructor = __extension__(tss_dtor_t)(void*)(uintptr_t)-1;
+        }
+
+        for (dtor_entry = entry->storage;
+            dtor_entry != entry->storage + 64 && !dtor_entry->dtor;
+            dtor_entry++
+        );
+
+        if (dtor_entry == entry->storage + 64) {
+            return thrd_nomem;
+        }
+
+        dtor_entry->dtor = destructor;
+        *key_out = (tss_t)(dtor_entry - entry->storage);
+        return thrd_success;
+    }
+
+    static_inline void* tss_get(tss_t key) {
+        __tss_entry* entry;
+        if (__tss_get_entry(&entry, false) != thrd_success) {
+            return NULL;
+        }
+
+        return (
+            key >= 64 ||
+            !entry->storage[key].dtor
+        ) ? NULL : entry->storage[key].data;
+    }
+
+    static_inline int tss_set(tss_t key, void* value) {
+        __tss_entry* entry;
+        int result;
+
+        if ((result = __tss_get_entry(&entry, false)) != thrd_success) {
+            return result;
+        } else if (key >= 64 || !entry->storage[key].dtor) {
+            return thrd_error;
+        }
+
+        entry->storage[key].data = value;
+        return thrd_success;
+    }
+
+    static_inline void tss_delete(tss_t key) {
+        __tss_entry* entry;
+        if (__tss_get_entry(&entry, false) == thrd_success &&
+            key < 64 &&
+            entry->storage[key].dtor
+        ) {
+            entry->storage[key].data = NULL;
+            entry->storage[key].dtor = __extension__(tss_dtor_t)NULL;
+        }
+    }
+
+#endif
+
+/* -- call once ------------------------------------------------------------- */
+
+#ifdef _NO_CALLONCE_DEFINITION
+#   undef _NO_CALLONCE_DEFINITION
+#   include "atomics.h"
+
+    typedef atomic_flag once_flag;
+#   define ONCE_FLAG_INIT ATOMIC_FLAG_INIT
+
+#   if GCC_PREREQ(1) || CLANG_PREREQ(1)
+#       if defined(__i386__) || defined(__x86_64__)
+#           define __THRD_PAUSE() __asm__ __volatile__("pause\n")
+#       elif (defined(__arm__) && __ARM_ARCH__ >= 7) || defined(__aarch64__)
+#           define __THRD_PAUSE() __asm__ __volatile__("yield" ::: "memory")
+#       elif (defined(__powerpc__) || defined(__powerpc64__))
+#           define __THRD_PAUSE() __asm__ __volatile__("or 27,27,27")
+#       endif
+#   elif MSVC_PREREQ(1)
+#       include <intrin.h>
+#       if defined(__i386__)
+#           define __THRD_PAUSE() _mm_pause()
+#       elif defined(__arm__) || defined(__aarch64__)
+#           define __THRD_PAUSE() __yield()
+#       endif
+#   elif defined(__WATCOMC__) && defined(__i386__)
+        extern _inline void __THRD_PAUSE(void);
+#       pragma aux __THRD_PAUSE = "db 0f3h,90h"
+#       define __THRD_PAUSE __THRD_PAUSE
+#   endif
+#   ifndef __THRD_PAUSE
+#       define __THRD_PAUSE()
+#   endif
+
+    static_inline void call_once(once_flag* flag, void (*func)(void)) {
+        if (flag && func && atomic_flag_test_and_set(flag))
+            func();
+    }
+
+#   undef __THRD_PAUSE
+#endif
+
 /* -- C++ thread::hardware_concurrency -------------------------------------- */
     
 static_inline unsigned int thrd_hardware_concurrency(void) {
@@ -1311,7 +1719,7 @@ static_inline unsigned int thrd_hardware_concurrency(void) {
 #elif defined(__APPLE__) || defined(__FreeBSD__)
     int count;
     size_t size = sizeof count;
-    return sysctlbyname("hw.cpu", &count, &size, NULL, 0) ? 0 : count;
+    return sysctlbyname("hw.ncpu", &count, &size, NULL, 0) ? 0 : count;
 #elif defined(_SC_NPROCESSORS_ONLN)
     int const count = sysconf(_SC_NPROCESSORS_ONLN);
     return MAX(count, 0);
