@@ -1,7 +1,7 @@
 /**
  * @file atomics.h
  * @author Simon Bolivar
- * @date 03 Sep 2021
+ * @date 22 Mar 2022
  * 
  * @brief Cross-compiler atomic operations.
  * 
@@ -918,6 +918,20 @@
  * @param[in]     b A 64-bit unsigned integer to write into @e a.
  */
 /**
+ * @fn bool atomic_flag_test_and_set(atomic_flag volatile* flag)
+ * @brief Atomically changes the state of a given flag to @c true.
+ *
+ * @param[in,out] flag Pointer to an atomic flag.
+ *
+ * @returns The previous value of the atomic flag.
+ */
+/**
+ * @fn void atomic_flag-clear(atomic_flag volatile* flag)
+ * @brief Atomically changes the state of a given flag to @c false.
+ *
+ * @param[in,out] flag Pointer to an atomic flag.
+ */
+/**
  * @fn void atomic_fence(void)
  * @brief Enforces a hardware memory barrier to prevent the reordering of read
  *        & write operations.
@@ -946,6 +960,7 @@
             typedef std::atomic<x ##_t> atomic_ ##x;
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_TYPE)
 #       undef __GENERATE_ATOMIC_TYPE
+#       define _CPP_ATOMICS 1
 #   endif
 #elif !defined(__STDC_NO_ATOMICS__) /* C11 atomics */
 #   include <stdatomic.h>
@@ -968,7 +983,9 @@
         __has_builtin(__atomic_fetch_and) && \
         __has_builtin(__atomic_fetch_or) && \
         __has_builtin(__atomic_fetch_xor) && \
-        __has_builtin(__atomic_thread_fence)) /* GCC 4.7+ __atomic builtins */
+        __has_builtin(__atomic_thread_fence) && \
+        __has_builtin(__atomic_test_and_set) && \
+        __has_builtin(__atomic_clear)) /* GCC 4.7+ __atomic builtins */
 #       define __GENERATE_ATOMIC_FUNC(x, y) \
             static_inline x ##_t y ##_ ##x ( \
                 atomic_ ##x volatile* a, \
@@ -1027,9 +1044,37 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+
         static_force_inline void atomic_fence(void) {
             __atomic_thread_fence(__ATOMIC_ACQ_REL);
         }
+
+        typedef struct {
+            unsigned char val;
+        } atomic_flag;
+#       define ATOMIC_FLAG_INIT { 0 }
+
+#       if defined(__arm__) || defined(__aarch64__)
+#           define __ATOMIC_SET_ORDER   __ATOMIC_ACQUIRE
+#           define __ATOMIC_CLEAR_ORDER __ATOMIC_RELEASE
+#       else
+#           define __ATOMIC_SET_ORDER   __ATOMIC_SEQ_CST
+#           define __ATOMIC_CLEAR_ORDER __ATOMIC_SEQ_CST
+#       endif
+
+        static_force_inline bool atomic_flag_test_and_set(
+            atomic_flag volatile* flag
+        ) {
+            return __atomic_test_and_set(&flag->val, __ATOMIC_SET_ORDER);
+        }
+        static_force_inline void atomic_flag_clear(
+            atomic_flag volatile* flag
+        ) {
+            __atomic_clear(flag, __ATOMIC_CLEAR_ORDER);
+        }
+
+#       undef __ATOMIC_CLEAR_ORDER
+#       undef __ATOMIC_SET_ORDER
 #       undef __GENERATE_ATOMIC_FUNCS
 #       undef __GENERATE_ATOMIC_FUNC
 #   elif GCC_PREREQ(1) /* GCC legacy __sync builtins */
@@ -1091,9 +1136,27 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+
         static_force_inline void atomic_fence(void) {
             __sync_synchronize();
         }
+
+        typedef struct {
+            unsigned char val;
+        } atomic_flag;
+#       define ATOMIC_FLAG_INIT { 0 }
+
+        static_force_inline bool atomic_flag_test_and_set(
+            atomic_flag volatile* flag
+        ) {
+            return (__sync_lock_test_and_set(&flag->val, 1) == 0);
+        }
+        static_force_inline void atomic_flag_clear(
+            atomic_flag volatile* flag
+        ) {
+            __sync_lock_release(&flag->val);
+        }
+
 #       pragma GCC diagnostic pop
 #       undef __GENERATE_ATOMIC_FUNCS
 #       undef __GENERATE_ATOMIC_FUNC
@@ -1225,6 +1288,7 @@
             __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCS)
 #           undef volatile
 #       endif
+
         static_force_inline void atomic_fence(void) {
 #           ifdef __amd64__
 #               __faststorefence();
@@ -1239,6 +1303,37 @@
                 __dmb(_ARM64_BARRIER_SY);
 #           endif
         }
+
+        typedef struct {
+            long val;
+        } atomic_flag;
+#       define ATOMIC_FLAG_INIT { 0 }
+
+#       if defined(__arm__) || defined(__aarch64__)
+            static_force_inline bool atomic_flag_test_and_set(
+                atomic_flag volatile* flag
+            ) {
+                return (_InterlockedExchange_acq(&flag->val, 1) == 0);
+            }
+            static_force_inline void atomic_flag_clear(
+                atomic_flag volatile* flag
+            ) {
+                _InterlockedExchange_rel(&flag->val, 0);
+            }
+#       else
+            static_force_inline bool atomic_flag_test_and_set(
+                atomic_flag volatile* flag
+            ) {
+                return (InterlockedExchange(&flag->val, 1) == 0);
+            }
+            static_force_inline void atomic_flag_clear(
+                atomic_flag volatile* flag
+            ) {
+                _ReadWriteBarrier();
+                flag->val = 0;
+            }
+#       endif
+
 #       undef __MSVC_ATOMIC_SUFFIX_int8
 #       undef __MSVC_ATOMIC_SUFFIX_uint8
 #       undef __MSVC_ATOMIC_SUFFIX_int16
@@ -1266,6 +1361,12 @@
                 atomic_ ##x volatile const* a  \
             );
         __MACRODEFS_ENUMERATE_ATOMICS(__GENERATE_ATOMIC_FUNCDEFS)
+        extern _inline void atomic_fence(void);
+
+#       pragma aux atomic_fence = \
+            "" \
+            parm [] \
+            modify exact [];
 #       pragma aux atomic_exchange_int8 = \
             "lock xchg [ecx], al" \
             parm [ecx] [al] \
@@ -1341,6 +1442,21 @@
             ) { \
                 (void)atomic_exchange_ ##x(a, b); \
             }
+
+        typedef atomic_uint8 atomic_flag;
+#       define ATOMIC_FLAG_INIT { 0 }
+
+        static_force_inline bool atomic_flag_test_and_set(
+            atomic_flag volatile* flag
+        ) {
+            return atomic_exchange_uint8(&flag->val, 1) == 0;
+        }
+        static_force_inline void atomic_flag_clear(
+            atomic_flag volatile* flag
+        ) {
+            atomic_fence();
+            flag->val = 0;
+        }
 
 #       undef __GENERATE_ATOMIC_FUNCS
 #       undef __GENERATE_ATOMIC_FUNCDEFS
@@ -1473,19 +1589,31 @@
 #       undef __GENERATE_ATOMIC_FUNC
 #   endif
 #else /* standard-compliant atomic implementations */
+#   ifdef _CPP_ATOMICS
+#       undef _CPP_ATOMICS
+#       define __ATOMIC_USING_STD using namespace std;
+        using std::atomic_flag;
+        using std::atomic_flag_clear;
+        using std::atomic_flag_test_and_set;
+#   else
+#       define __ATOMIC_USING_STD
+#   endif
     static_force_inline void atomic_fence(void) {
+        __ATOMIC_USING_STD
         atomic_thread_fence(memory_order_acq_rel);
     }
 #   define __GENERATE_OTHER_ATOMIC_FUNCS(x) \
         static_inline x ##_t atomic_load_ ##x ( \
             atomic_ ##x volatile const* a \
         ) { \
+            __ATOMIC_USING_STD \
             return atomic_load(a); \
         } \
         static_inline void atomic_store_ ##x ( \
             atomic_ ##x volatile* a, \
             x ##_t b \
         ) { \
+            __ATOMIC_USING_STD \
             atomic_store(a, b); \
         } \
         static_inline bool atomic_compare_exchange_strong_ ##x ( \
@@ -1493,6 +1621,7 @@
             x ##_t* b, \
             x ##_t c \
         ) { \
+            __ATOMIC_USING_STD \
             return atomic_compare_exchange_strong(a, b, c); \
         } \
         static_inline bool atomic_compare_exchange_weak_ ##x ( \
@@ -1500,10 +1629,12 @@
             x ##_t* b, \
             x ##_t c \
         ) { \
+            __ATOMIC_USING_STD \
             return atomic_compare_exchange_weak(a, b, c); \
         }
 #   define __GENERATE_ATOMIC_FUNC(x, y) \
         static_inline x ##_t y ##_ ##x (atomic_ ##x volatile* a, x ##_t b) { \
+            __ATOMIC_USING_STD \
             return y(a, b); \
         }
 #   define __GENERATE_ATOMIC_FUNCS(x) \
@@ -1518,6 +1649,7 @@
 #   undef __GENERATE_ATOMIC_FUNCS
 #   undef __GENERATE_OTHER_ATOMIC_FUNCS
 #   undef __GENERATE_ATOMIC_FUNC
+#   undef __ATOMIC_USING_STD
 #endif
 #undef __MACRODEFS_ENUMERATE_ATOMICS
 
