@@ -88,6 +88,7 @@ Multiplatform header-only C11-compatible preemptive multitasking library.
 - Mutexes (`mtx_t`).
 - Condition variables (`cnd_t`).
 - Semaphores (`sem_t`).
+  - Relative timed variant of semaphore wait (`sem_reltimedwait_np`).
 - Thread-local storage (`tss_t`, `tss_dtor_t`).
   - To guarantee it functions across platforms, you must place
     `TSS_DTOR_SETUP()` somewhere in the global scope in one (and only one) of

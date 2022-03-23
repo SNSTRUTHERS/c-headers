@@ -71,18 +71,18 @@
         thrd_busy = ERROR_BUSY,
         thrd_error = -1
     };
-    
+
     enum mtx_flags {
         mtx_plain = 0,
         mtx_recursive = 1,
         mtx_timed = 2
     };
-    
+
     struct timespec {
         time_t tv_sec;
         long tv_nsec;
     };
-    
+
 #   if !defined(__WINRT__) || (_WIN32_WINNT < 0x602)
         typedef union sem_u {
             HANDLE kern;
@@ -104,13 +104,13 @@
 #   else
         typedef CONDITION_VARIABLE cnd_t;
 #   endif
-    
+
     typedef HANDLE thrd_t;
     typedef CRITICAL_SECTION mtx_t;
     typedef DWORD tss_t;
     typedef int (*thrd_start_t)(void*);
     typedef void (*tss_dtor_t)(void*);
-    
+
     typedef struct __tss_dtor_entry {
         tss_t key;
         tss_dtor_t dtor;
@@ -137,10 +137,10 @@
         } params;
         __tss_dtor_entry* entry;
         int code;
-        
+
         memcpy(&params, arg, sizeof params);
         free(arg);
-        
+
         code = (*params.func)(params.ptr);
 
         for (entry = __tss_dtor_table;
@@ -153,7 +153,7 @@
                     (*entry->dtor)(value);
             }
         }
-        
+
         return (DWORD)code;
     }
 
@@ -171,7 +171,7 @@
                 void* ptr;
             }* thrd_params;
             HANDLE thread;
-            
+
             if (!(thrd_params = malloc(sizeof *thrd_params))) {
                 return thrd_nomem;
             } else {
@@ -193,15 +193,15 @@
             }
         }
     }
-    
+
     static_inline int thrd_equal(thrd_t a, thrd_t b) {
         return a == b;
     }
-    
+
     static_inline thrd_t thrd_current(void) {
         return GetCurrentThread();
     }
-    
+
     static int thrd_sleep(
         struct timespec const* duration,
         struct timespec* remaining
@@ -218,10 +218,10 @@
             uint64_t want;
             ULARGE_INTEGER real, total;
             uint32_t msecs;
-            
+
             if (remaining)
                 GetSystemTimeAsFileTime(&start);
-            
+
             want = total.QuadPart = (
                 duration->tv_sec * 1000 +
                 duration->tv_nsec / 1000000
@@ -229,17 +229,17 @@
             while (total.QuadPart) {
                 msecs = (uint32_t)MIN(UINT64_C(4294967294), total.QuadPart);
                 total.QuadPart -= msecs;
-                
+
                 Sleep(__TIMESPEC_TO_MS(duration));
             }
-            
+
             if (remaining) {
                 GetSystemTimeAsFileTime(&end);
                 real.HighPart = start.dwHighDateTime;
                 real.LowPart = start.dwLowDateTime;
                 total.HighPart = end.dwHighDateTime;
                 total.LowPart = end.dwLowDateTime;
-                
+
                 real.QuadPart = (total.QuadPart - real.QuadPart) / 10000;
                 total.QuadPart =
                     (real.QuadPart < want) * (want - real.QuadPart)
@@ -247,15 +247,15 @@
 
                 remaining->tv_sec = total.QuadPart / 1000;
                 remaining->tv_nsec = (uint32_t)(total.QuadPart % 1000) * 1000000;
-                
+
                 if (total.QuadPart)
                     return thrd_error;
             }
-            
+
             return thrd_success;
         }
     }
-    
+
     static_inline void thrd_yield(void) {
         SwitchToThread();
     }
@@ -272,10 +272,10 @@
                     (*entry->dtor)(value);
             }
         }
-        
+
         ExitThread((DWORD)result);
     }
-    
+
     static_inline int thrd_detach(thrd_t thread) {
         if (!thread) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -286,7 +286,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline int thrd_join(thrd_t thread, int* result_out) {
         if (thread) {
             DWORD result = WaitForSingleObject(thread, INFINITE);
@@ -310,10 +310,10 @@
     }
 
 /* ---- mutex API ----------------------------------------------------------- */
-    
+
     static_inline int mtx_init(mtx_t* mutex, int type) {
         (void)type;
-        
+
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -324,7 +324,7 @@
             ;
         }
     }
-    
+
     static_inline int mtx_lock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -334,7 +334,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline int mtx_trylock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -343,7 +343,7 @@
             return TryEnterCriticalSection(mutex) ? thrd_success : thrd_error;
         }
     }
-    
+
     static_inline int mtx_timedlock(
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
@@ -361,7 +361,7 @@
                 uint64_t nsx100;
                 FILETIME filetime;
             } expire, now;
-            
+
             GetSystemTimeAsFileTime(&expire.filetime);
             expire.nsx100 += __TIMESPEC_TO_MS(duration) * 10000;
             while (mtx_trylock(mutex) != thrd_success) {
@@ -372,11 +372,11 @@
                     thrd_yield();
                 }
             }
-            
+
             return thrd_success;
         }
     }
-    
+
     static_inline int mtx_unlock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -386,7 +386,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline void mtx_destroy(mtx_t* mutex) {
         if (mutex)
             DeleteCriticalSection(mutex);
@@ -402,7 +402,7 @@
         DWORD millisecs
     );
     static PFN_WaitOnAddress WaitOnAddress;
-    
+
     typedef void (WINAPI* PFN_WakeByAddressSingle)(
         void* addr
     );
@@ -419,7 +419,7 @@
             HMODULE synch120 = GetModuleHandleA(
                 "api-ms-core-synch-l1-2.0.dll"
             );
-            
+
             if (synch120) {
                 WaitOnAddress = __extension__
                     (PFN_WaitOnAddress)GetProcAddress(
@@ -429,14 +429,14 @@
                     (PFN_WakeByAddressSingle)GetProcAddress(
                         synch120, "WakeByAddressSingle"
                 );
-                
+
                 if (!WaitOnAddress || !WakeByAddressSingle) {
                     WaitOnAddress = __extension__ NULL;
                     WakeByAddressSingle = __extension__ NULL;
                 }
             }
         }
-        
+
         if (!WaitOnAddress) {
             sem->kern = CreateSemaphoreW(
                 NULL, (LONG)value, SEM_VALUE_MAX, NULL
@@ -449,7 +449,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline int sem_destroy(sem_t* sem) {
         if (!sem) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -464,7 +464,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline int sem_trywait(sem_t* sem) {
         if (!sem) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -486,8 +486,8 @@
             )) ? thrd_success : thrd_error;
         }
     }
-    
-    static_inline int sem_timedwait(
+
+    static_inline int sem_reltimedwait_np(
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
@@ -510,7 +510,7 @@
 #   endif
             {
                 LONG c;
-                
+
                 do {
                     c = sem->atom;
                     while (!c) {
@@ -529,11 +529,42 @@
             }
         }
     }
-    
-    static_inline int sem_wait(sem_t* sem) {
-        return sem_timedwait(sem, NULL);
+
+    static_inline int sem_timedwait(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) {
+        union {
+            uint64_t nsx100;
+            FILETIME filetime;
+        } current_time;
+        uint64_t duration_filetime;
+        struct timespec relative_time;
+
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            errno = EINVAL;
+            return thrd_error;
+        }
+
+        GetSystemTimeAsFileTime(&current_time.filetime);
+        duration_filetime = (UINT64_C(11644473600) + duration->tv_sec)
+            * UINT64_C(10000000)
+            + duration->tv_nsec / 100;
+        duration_filetime -= current_time.filetime;
+
+        relative_time.tv_sec = (time_t)(duration_filetime / UINT64_C(10000000));
+        relative_time.tv_nsec = (time_t)(duration_filetime % UINT64_C(10000000)) * 100;
+        return sem_reltimedwait_np(sem, &relative_time);
     }
-    
+
+    static_inline int sem_wait(sem_t* sem) {
+        return sem_reltimedwait_np(sem, NULL);
+    }
+
     static_inline int sem_post(sem_t* sem) {
         if (!sem) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -556,7 +587,7 @@
             return (GetLastError() == NO_ERROR) ? thrd_success : thrd_error;
         }
     }
-    
+
     static_inline int sem_getvalue(
         sem_t *__restrict sem,
         int *__restrict result_out
@@ -574,7 +605,7 @@
         typedef struct _SEMAPHORE_BASIC_INFORMATION {
             ULONG current, max;
         } SEMAPHORE_BASIC_INFORMATION;
-        
+
         if (!sem) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -583,15 +614,15 @@
         if (!WaitOnAddress) {
             static PFN_NtQuerySemaphore NtQuerySemaphore;
             static PFN_RtlNtStatusToDosError RtlNtStatusToDosError;
-            
+
             SEMAPHORE_BASIC_INFORMATION basic_info;
             LONG status;
-            
+
             if (!RtlNtStatusToDosError) {
                 HMODULE ntdll = GetModuleHandleA("ntdll.dll");
                 if (!ntdll)
                     return thrd_error;
-                
+
                 RtlNtStatusToDosError = __extension__
                     (PFN_RtlNtStatusToDosError)GetProcAddress(
                         ntdll, "RtlNtStatusToDosError"
@@ -600,11 +631,11 @@
                     (PFN_NtQuerySemaphore)GetProcAddress(
                         ntdll, "NtQuerySemaphore"
                 );
-                
+
                 if (!NtQuerySemaphore || !RtlNtStatusToDosError)
                     return thrd_error;
             }
-            
+
             if ((status = (*NtQuerySemaphore)(
                     sem, 0, &basic_info, sizeof basic_info, NULL
             )) == ERROR_SUCCESS) {
@@ -624,29 +655,29 @@
     }
 
 /* ---- condition variable API ---------------------------------------------- */
-    
+
     typedef void (WINAPI* PFN_InitializeConditionVariable)(
         cnd_t* cond
     );
     static PFN_InitializeConditionVariable InitializeConditionVariable;
-    
+
     typedef void (WINAPI* PFN_WakeConditionVariable)(
         cnd_t* cond
     );
     static PFN_WakeConditionVariable WakeConditionVariable;
-    
+
     typedef void (WINAPI* PFN_WakeAllConditionVariable)(
         cnd_t* cond
     );
     static PFN_WakeAllConditionVariable WakeAllConditionVariable;
-    
+
     typedef BOOL (WINAPI* PFN_SleepConditionVariableCS)(
         cnd_t* cond,
         mtx_t* mutex,
         DWORD millisecs
     );
     static PFN_SleepConditionVariableCS SleepConditionVariableCS;
-    
+
     static_inline int cnd_init(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -672,7 +703,7 @@
                         (PFN_SleepConditionVariableCS)GetProcAddress(
                             kernel32, "SleepConditionVariableCS"
                     );
-                    
+
                     if (!InitializeConditionVariable ||
                         !WakeConditionVariable ||
                         !WakeAllConditionVariable ||
@@ -685,7 +716,7 @@
                     }
                 }
             }
-            
+
             if (!InitializeConditionVariable) {
                 if (mtx_init(&cond->lock, mtx_plain) != thrd_success) {
                     goto mtx_lock_fail;
@@ -697,9 +728,9 @@
 
                 cond->wait = 0;
                 cond->sigs = 0;
-                
+
                 return thrd_success;
-                
+
             sem_done_fail:
                 sem_destroy(&cond->sem_wait);
             sem_wait_fail:
@@ -712,7 +743,7 @@
             return thrd_success;
         }
     }
-    
+
     static_inline int cnd_signal(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -721,7 +752,7 @@
 #   ifdef _NO_VISTA_CONDVAR
         if (!WakeConditionVariable) {
             mtx_lock(&cond->lock);
-            
+
             if (cond->wait > cond->sigs) {
                 cond->sigs++;
                 sem_post(&cond->sem_wait);
@@ -738,7 +769,7 @@
 
         return thrd_success;
     }
-    
+
     static_inline int cnd_broadcast(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -747,17 +778,17 @@
 #   ifdef _NO_VISTA_CONDVAR
         if (!WakeAllConditionVariable) {
             mtx_lock(&cond->lock);
-            
+
             if (cond->wait > cond->sigs) {
                 int i;
                 const int waiting = cond->wait - cond->sigs;
-                
+
                 cond->sigs = cond->wait;
                 for (i = 0; i < waiting; i++) {
                     if (sem_post(&cond->sem_wait) == thrd_error)
                         return thrd_error;
                 }
-                
+
                 mtx_unlock(&cond->lock);
                 for (i = 0; i < waiting; i++)
                     sem_wait(&cond->sem_done);
@@ -772,7 +803,7 @@
 
         return thrd_success;
     }
-    
+
     static_inline int cnd_timedwait(
         cnd_t *__restrict cond,
         mtx_t *__restrict mutex,
@@ -791,23 +822,23 @@
 #       ifdef _NO_VISTA_CONDVAR
             if (!SleepConditionVariableCS) {
                 int result;
-                
+
                 mtx_lock(&cond->lock);
                 cond->wait++;
                 mtx_unlock(&cond->lock);
-                
+
                 mtx_unlock(mutex);
-                result = sem_timedwait(&cond->sem_wait, duration);
-                
+                result = sem_reltimedwait_np(&cond->sem_wait, duration);
+
                 mtx_lock(&cond->lock);
                 if (cond->sigs) {
                     if (!result)
                         sem_wait(&cond->sem_wait);
-                    
+
                     sem_post(&cond->sem_done);
                     cond->sigs--;
                 }
-                
+
                 cond->wait--;
                 mtx_unlock(&cond->lock);
                 mtx_lock(mutex);
@@ -822,11 +853,11 @@
             }
         }
     }
-    
+
     static_inline int cnd_wait(cnd_t* cond, mtx_t* mutex) {
         return cnd_timedwait(cond, mutex, NULL);
     }
-    
+
     static_inline void cnd_destroy(cnd_t* cond) {
 #   ifdef _NO_VISTA_CONDVAR
         if (!WakeConditionVariable && cond) {
@@ -840,11 +871,11 @@
     }
 
 /* ---- thread-local storage API -------------------------------------------- */
-    
+
     static_inline int tss_create(tss_t* key_out, tss_dtor_t destructor) {
         __tss_dtor_entry* entry;
         tss_t key;
-        
+
         if (!key_out) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -857,7 +888,7 @@
                     !entry->dtor;
                 entry++
             );
-            
+
             if (entry == __tss_dtor_table + ARRAY_LENGTH(__tss_dtor_table)) {
                 return thrd_error;
             } else {
@@ -865,25 +896,25 @@
                 entry->dtor = destructor;
             }
         }
-        
+
         *key_out = key;
         return thrd_success;
     }
-    
+
     static_inline void* tss_get(tss_t key) {
         return TlsGetValue(key);
     }
-    
+
     static_inline int tss_set(tss_t key, void* value) {
         return TlsSetValue(key, value) ? thrd_success : thrd_error;
     }
-    
+
     static_inline void tss_delete(tss_t key) {
         TlsFree(key);
     }
 
 /* ---- cleanup ------------------------------------------------------------- */
-    
+
 #   undef __TIMESPEC_TO_MS
 #   ifdef _NO_VISTA_CONDVAR
 #       undef _NO_VISTA_CONDVAR
@@ -970,24 +1001,24 @@
 
     static_inline int thrd_join(thrd_t thread, int* result_out) {
         void* result;
-        
+
         if (pthread_join(thread, &result) != 0) {
             return thrd_error;
         } else if (result_out) {
             *result_out = (int)(intptr_t)result;
         }
-        
+
         return thrd_success;
     }
 
 /* ---- mutex API ----------------------------------------------------------- */
-    
+
     static_inline int mtx_init(mtx_t* mutex, int type) {
         int result;
         pthread_mutexattr_t attr;
-        
+
         pthread_mutexattr_init(&attr);
-        
+
         if (type & mtx_timed) {
 #           ifdef __linux__
                 pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_TIMED_NP);
@@ -1414,8 +1445,8 @@
         cnd_destroy(&sem->cond);
         mtx_destroy(&sem->lock);
     }
-    
-    static_inline int sem_timedwait(
+
+    static_inline int sem_reltimedwait_np(
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
@@ -1436,7 +1467,32 @@
 
         return mtx_unlock(&sem->lock);
     }
-    
+
+    static_inline int sem_timedwait(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) {
+        struct timespec relative_time;
+
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            errno = EINVAL;
+            return thrd_error;
+        }
+
+        clock_gettime(CLOCK_REALTIME, &relative_time);
+        relative_time.tv_nsec -= duration->tv_nsec;
+        relative_time.tv_sec -= duration->tv_sec;
+        if (relative_time.tv_nsec < 0) {
+            relative_time.tv_nsec += 1000000000;
+            relative_time.tv_sec -= 1;
+        }
+        return sem_reltimedwait_np(sem, &relative_time);
+    }
+
     static_inline int sem_wait(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
@@ -1502,7 +1558,7 @@
         } else if (result_out) {
             *result_out = sem->count;
         }
-        
+
         return mtx_unlock(&sem->lock);
     }
 #endif
@@ -1708,7 +1764,7 @@
 #endif
 
 /* -- C++ thread::hardware_concurrency -------------------------------------- */
-    
+
 static_inline unsigned int thrd_hardware_concurrency(void) {
 #if defined(_WIN32) || defined(__WINRT__)
     SYSTEM_INFO info;
