@@ -1,7 +1,7 @@
 /**
  * @file coro.h
  * @author Simon Bolivar
- * @date 23 Jan 2022
+ * @date 23 Mar 2022
  * 
  * @brief Coroutine library using fibers.
  * 
@@ -42,8 +42,10 @@
 #   include <stdlib.h>
 #endif
 
+/* == STACKFUL COROUTINES (FIBERS) ========================================== */
+
 /**
- * @brief A cooperative thread.
+ * @brief A stackful cooperative thread.
  */
 typedef struct Coro_Fiber Coro_Fiber;
 
@@ -105,8 +107,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
             typedef struct { uintptr_t eip, esp, ebp, ebx; } _Coro_Context;
 
             static_force_inline void __fiber_switch(
-                _Coro_Context *const restrict from,
-                _Coro_Context *const restrict to
+                _Coro_Context *const __restrict from,
+                _Coro_Context *const __restrict to
             ) {
                 __asm__ __volatile__ (
                     "call 1f\n"
@@ -135,8 +137,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
             typedef struct { uintptr_t eip, esp, ebp; } _Coro_Context;
 
             static_force_inline void __fiber_switch(
-                _Coro_Context *const restrict from,
-                _Coro_Context *const restrict to
+                _Coro_Context *const __restrict from,
+                _Coro_Context *const __restrict to
             ) {
                 __asm__ __volatile__ (
                     "movl $1f, (%0)\n\t"
@@ -188,8 +190,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
         } _Coro_Context;
 
         static_force_inline void __fiber_switch(
-            _Coro_Context *const restrict from,
-            _Coro_Context *const restrict to
+            _Coro_Context *const __restrict from,
+            _Coro_Context *const __restrict to
         ) {
             __asm__ __volatile__ (
                 "leaq 1f(%%rip), %%rax\n\t"
@@ -362,8 +364,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
         typedef struct { uintptr_t regs[4]; } _Coro_Context;
 #       ifdef __LP64__
             static_force_inline void __fiber_switch(
-                _Coro_Context *const restrict from,
-                _Coro_Context *const restrict to
+                _Coro_Context *const __restrict from,
+                _Coro_Context *const __restrict to
             ) {
                 uintptr_t stack[16] __attribute__((aligned(16)));
                 uintptr_t tmpsp = (uintptr_t)&stack[0] - 2047UL;
@@ -444,8 +446,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
             while (0)
 #       else
             static_force_inline void __fiber_switch(
-                _Coro_Context *const restrict from,
-                _Coro_Context *const restrict to
+                _Coro_Context *const __restrict from,
+                _Coro_Context *const __restrict to
             ) {
                 uintptr_t tmpstk[16] __attribute__((aligned(16)));
                 __asm__ __volatile__ (
@@ -522,8 +524,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
 
         void __fiber_start(void);
         int __fiber_switch(
-            _Coro_Context *const restrict from,
-            _Coro_Context *const restrict to
+            _Coro_Context *const __restrict from,
+            _Coro_Context *const __restrict to
         );
 
         __asm__ (
@@ -577,8 +579,8 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
         } _Coro_Context;
 
         int __fiber_switch(
-            _Coro_Context *const restrict from,
-            _Coro_Context *const restrict to
+            _Coro_Context *const __restrict from,
+            _Coro_Context *const __restrict to
         );
 
         __asm__(
@@ -930,7 +932,7 @@ typedef int (CDECL* Coro_Function)(Coro_Fiber *const, uintptr_t);
 #       define __FIBER_INIT(coro, start, param, stksz) do { \
             if (!pagesize) \
                 pagesize = sysconf(_SC_PAGESIZE); \
-            coro->alloc_size = MAX(stksz, pagesize); \
+            coro->alloc_size = MAX(stksz, (size_t)pagesize); \
             coro->alloc_size = !(coro->alloc_size % pagesize) ? \
                 coro->alloc_size : \
                 coro->alloc_size + \
@@ -986,49 +988,49 @@ static_force_inline bool fiber_init(
 #endif
 
     if (!stack_size)
-        stack_size = CORO_DEFAULT_STACK_SIZE;
-    else if (stack_size < CORO_MIN_STACK_SIZE)
-        stack_size = CORO_MIN_STACK_SIZE;
+        stack_size = FIBER_DEFAULT_STACK_SIZE;
+    else if (stack_size < FIBER_MIN_STACK_SIZE)
+        stack_size = FIBER_MIN_STACK_SIZE;
 
     coro->fn = func;
     coro->up = param;
-    __CORO_INIT(
+    __FIBER_INIT(
         coro,
-        __coro_start,
+        __fiber_start,
         (uintptr_t)coro,
         stack_size
     );
 }
 
-static_force_inline void coro_destroy(
+static_force_inline void fiber_destroy(
     Coro_Fiber *const coro
-) __CORO_DESTROY(coro)
+) __FIBER_DESTROY(coro)
 
-static_force_inline void coro_resume(
+static_force_inline void fiber_resume(
     Coro_Fiber *const coro
-) __CORO_RESUME(coro)
+) __FIBER_RESUME(coro)
 
-static_force_inline void coro_suspend(
+static_force_inline void fiber_suspend(
     Coro_Fiber *const coro
-) __CORO_SUSPEND(coro)
+) __FIBER_SUSPEND(coro)
 
-#define __coro_entry
-#define __coro_switch
-#define __coro_start
-#undef __CORO_VREG
-#undef __CORO_VUNREG
-#undef __CORO_VID
-#undef __CORO_INIT
-#undef __CORO_DESTROY
-#undef __CORO_RESUME
-#undef __CORO_SUSPEND
-#undef __CORO_GETPTR
-#undef __CORO_STARTDECL
-#undef __CORO_STARTDECL
-#undef __CORO_STARTPARAMS
-#undef __CORO_STARTUNUSED
-#undef __CORO_STKADJUST
-#undef __CORO_STATE_HEAD
+#define __fiber_entry
+#define __fiber_switch
+#define __fiber_start
+#undef __FIBER_VREG
+#undef __FIBER_VUNREG
+#undef __FIBER_VID
+#undef __FIBER_INIT
+#undef __FIBER_DESTROY
+#undef __FIBER_RESUME
+#undef __FIBER_SUSPEND
+#undef __FIBER_GETPTR
+#undef __FIBER_STARTDECL
+#undef __FIBER_STARTDECL
+#undef __FIBER_STARTPARAMS
+#undef __FIBER_STARTUNUSED
+#undef __FIBER_STKADJUST
+#undef __FIBER_STATE_HEAD
 #ifdef __ALIGNED_END
 #   undef __ALIGNED_END
 #endif /* __ALIGNED_END */
