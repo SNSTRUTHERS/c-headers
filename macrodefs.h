@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 29 Jan 2022
+ * @date 24 Mar 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -1237,6 +1237,9 @@
 #       endif
 #       if GCC_PREREQ(40300)
 #           define __macrodefs_attribute_error              1
+#       endif
+#       if GCC_PREREQ(40600)
+#           define __macrodefs_attribute_ifunc              1
 #       endif
 #   else
 #       define __attribute__(x)
