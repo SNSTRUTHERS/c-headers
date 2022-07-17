@@ -22,6 +22,7 @@ General-use definitions, annotations, and macro definitions.
     you're compiling for IA-32/x86.
 - Compiler feature detection (`__has_attribute`, `__has_declspec_attribute`,
 etc.).
+  - Includes C++ feature detection macros (e.g. `cpp_constexpr`, `cpp_rtti`).
 - Cross-compiler compatible function, typedef, pointer, and parameter attributes.
   - `ALLOCATOR` to denote an associated free function for a given allocation
     function.
@@ -47,6 +48,13 @@ etc.).
     effects is used.
 - Byte swapping operations.
   - `BSWAP16`, `BSWAP32`, `BSWAP64`
+- `WORD_SIZE` for preprocessor pointer size detection.
+- Explicit `FALLTHROUGH` for `switch`-`case` blocks.
+- Variadic macro building blocks for preprocessor metaprogramming.
+  - `VARGEMPTY` checks if the parameter list it is provided is empty;
+    returns 1 if empty, 0 if not.
+  - `VARGCOUNT` returns the number of parameters it has been passed.
+  - `VARGAPPLY` applies a macro to a provided parameter list.
 
 ## `atomics.h`
 Cross-compiler header-only atomic operations library.

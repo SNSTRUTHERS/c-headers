@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 24 Mar 2022
+ * @date 17 Jul 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -13,6 +13,8 @@
 #define MACRODEFS_H_
 
 /* == C & C++ VERSION CHECK MACROS ========================================== */
+
+#ifndef __MACRODEFS_C_VERSION
 
 /**
  * @def CPP_PREREQ(ver)
@@ -27,7 +29,11 @@
  * @param[in] ver The standard C version to check against.
  */
 #ifdef __cplusplus
-#   define __MACRODEFS_CPP_VERSION __cplusplus
+#   if defined(_MSC_VER) && defined(_MSVC_LANG) && (_MSVC_LANG > __cplusplus)
+#       define __MACRODEFS_CPP_VERSION _MSVC_LANG
+#   else
+#       define __MACRODEFS_CPP_VERSION __cplusplus
+#   endif
 #   define __MACRODEFS_C_VERSION 0L
 #else
 #   define __MACRODEFS_CPP_VERSION 0L
@@ -51,7 +57,11 @@
     int }}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 #endif
 
+#endif
+
 /* == MAJOR COMPILER VERSION CHECK MACROS =================================== */
+
+#ifndef GCC_PREREQ
 
 /**
  * @def GCC_PREREQ(ver)
@@ -93,10 +103,20 @@
 #else
 #   define CLANG_PREREQ(ver) 0
 #endif
+#ifdef __TINYC__
+#   define TINYC_PREREQ(ver) ((ver) <= __TINYC__)
+#else
+#   define TINYC_PREREQ(ver) 0
+#endif
 #ifdef __SUNPRO_C
 #   define SUN_PREREQ(ver) ((ver) <= __SUNPRO_C)
 #else
 #   define SUN_PREREQ(ver) 0
+#endif
+#ifdef __DMC__
+#   define DMC_PREREQ(ver) ((ver) <= )
+#else
+#   define DMC_PREREQ(ver) 0
 #endif
 #ifdef _MSC_VER
 #   define MSVC_PREREQ(ver) ((ver) <= _MSC_VER)
@@ -105,7 +125,7 @@
 #   endif
 #else
 #   define MSVC_PREREQ(ver) 0
-#endif /* ICC <1400 lies and reports GCC4.3 compatibility when it doesn't */
+#endif /* ICC <1400 reports GCC4.3 compatibility when it isn't */
 #if defined(__ICC) && (__ICC < 1400) && GCC_PREREQ(40300)
 #   undef __GNUC_MINOR__
 #   define __GNUC_MINOR__ 2
@@ -124,7 +144,7 @@
 #       pragma clang diagnostic ignored "-Wnon-literal-null-conversion"
 #       pragma clang diagnostic ignored "-Wswitch-bool"
 #       pragma clang diagnostic ignored "-Wunknown-pragmas"
-#   else
+#   elif GCC_PREREQ(30000)
 #       pragma GCC diagnostic ignored "-Wmissing-braces"
 #       pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #       pragma GCC diagnostic ignored "-Wunknown-pragmas"
@@ -136,7 +156,11 @@
 #   pragma warning(disable: 4068) /* ignore unknown pragmas */
 #endif
 
+#endif
+
 /* == METAPROGRAMMING MACROS ================================================ */
+
+#ifndef STRINGIFY
 
 /**
  * @def CONCATENATE(x, y)
@@ -158,7 +182,11 @@
 #define _STRINGIFY(x) __STRINGIFY_(x)
 #define STRINGIFY(x) _STRINGIFY(x)
 
+#endif
+
 /* == VARIADIC MACRO METAPROGRAMMING ======================================== */
+
+#if !defined(VARGPACK) || !defined(_NO_VA_ARGS)
 
 /**
  * @def VARGPACK(...)
@@ -169,46 +197,850 @@
 /**
  * @def VARGCOUNT(...)
  * @brief Counts how many arguments there are in a variadic macro.
- * @note Can only count up to 15 parameters. Cannot count less than 1
- *       parameter.
+ * @note Credit goes to Jens Gustedt, H Walters, and Luiz Martins
+ * @link https://stackoverflow.com/a/66556553
  * 
  * @param[in] ... Parameters to count.
  */
-#if MSVC_PREREQ(1) || STDC_PREREQ(199901L) || CPP_PREREQ(201103L)
-#   define _VARGCOUNT( \
-        _1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, _a_, _b_, _c_, _d_, _e_, \
-        _f_,  c, ...) c
-#   define VARGPACK(...) __VA_ARGS__
-#   define VARGCOUNT(...) _VARGCOUNT( \
-        __VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 \
-    )
-#elif GCC_PREREQ(30000) && !(STDC_PREREQ(199901L) || CPP_PREREQ(201103L))
+/**
+ * @def VARGAPPLY(macro, args)
+ * @brief Applies a macro to a sequence of arguments.
+ * 
+ * @name[in] macro The name of a macro to repeat.
+ * @name[in] extra
+ * @name[in] args  List of arguments.
+ */
+#if GCC_PREREQ(30000) || defined(__TINYC__)
     __extension__
-#   define _VARGCOUNT( \
-        _1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, _a_, _b_, _c_, _d_, _e_, \
-        _f_,  c, ...) c
-    ;__extension__
 #   define VARGPACK(...) __VA_ARGS__
-    ;__extension__
-#   define VARGCOUNT(...) _VARGCOUNT( \
-        __VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 \
-    )
     ;
 #   define _EXT_VA_ARGS 1
+#elif MSVC_PREREQ(1400) || STDC_PREREQ(199901L) || CPP_PREREQ(201103L) \
+    || (defined(__CC_ARM) && !defined(__GNUC__)) || defined(__DMC__)
+#   define VARGPACK(...) __VA_ARGS__
 #elif GCC_PREREQ(1) /* GNU C varargs */
-#   define _VARGCOUNT( \
-        _1_, _2_, _3_, _4_, _5_, _6_, _7_, _8_, _9_, _a_, _b_, _c_, _d_, _e_, \
-        _f_,  c, args...) c
 #   define VARGPACK(args...) args
-#   define VARGCOUNT(args...) _VARGCOUNT( \
-        args, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0 \
-    )
 #   define _GNUC_VA_ARGS 1
 #else
 #   define _NO_VA_ARGS 1
 #endif
+#ifndef _NO_VA_ARGS
+#   define _COMMA_1
+#   define _COMMA_0 ,
+#   define COMMA() ,
+#   define SEMICOLON() ;
+#   define SPACE()
+#   define LOG_AND() &&
+#   define LOG_OR() ||
+#   define BIN_AND() &
+#   define BIT_OR() |
+#   define BIT_XOR() ^
+#   define _EXPAND(x) x
+#   define __PASTE3_(_0, _1, _2) _0 ## _1 ## _2
+#   define _PASTE3(_0, _1, _2) __PASTE3_(_0, _1, _2)
+#   define _PASTE5(_0, _1, _2, _3, _4) _0 ## _1 ## _2 ## _3 ## _4
+#   define _IS_EMPTY_CASE_0001 ,
+#   define _INVOKE_IF_NOT_LAST_11(x)
+#   define _INVOKE_IF_NOT_LAST_10(x)
+#   define _INVOKE_IF_NOT_LAST_01(x)
+#   define _INVOKE_IF_NOT_LAST_00(x) x()
+#   define __IS_EMPTY_(_0, _1, _2, _3) \
+        _HAS_COMMA(_PASTE5(_IS_EMPTY_CASE_, _0, _1, _2, _3))
+#   define _VARGISEMPTY_0 0
+#   define _VARGISEMPTY_1 1
+#   ifdef _GNUC_VA_ARGS
+#       define __TUPHEAD_(x, args...) x
+#       define _TUPHEAD(args...) VARGPACK(__TUPHEAD_(args,))
+#       define __TUPTAIL_(x, args...) (args)
+#       define _TUPTAIL(args...) VARGPACK(__TUPTAIL_(args))
+#       define _ARG_100(_,\
+            _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85, \
+            _84,_83,_82,_81,_80,_79,_78,_77,_76,_75,_74,_73,_72,_71,_70,_69, \
+            _68,_67,_66,_65,_64,_63,_62,_61,_60,_59,_58,_57,_56,_55,_54,_53, \
+            _52,_51,_50,_49,_48,_47,_46,_45,_44,_43,_42,_41,_40,_39,_38,_37, \
+            _36,_35,_34,_33,_32,_31,_30,_29,_28,_27,_26,_25,_24,_23,_22,_21, \
+            _20,_19,_18,_17,_16,_15,_14,_13,_12,_11,_10,_9,_8,_7,_6,_5,_4,_3, \
+            _2,X_,args...) X_
+#       define _HAS_COMMA(args...) _EXPAND(_ARG_100(args, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0))
+#       define _TRIGGER_PARENTHESIS_(args...) ,
+#       define _IS_EMPTY(args...)  __IS_EMPTY_( \
+            _HAS_COMMA(args), \
+            _HAS_COMMA(_TRIGGER_PARENTHESIS_ args), \
+            _HAS_COMMA(args (/*empty*/)), \
+            _HAS_COMMA(_TRIGGER_PARENTHESIS_ args (/*empty*/)))
+#       define _VARGCOUNT_EMPTY_1(args...) 0
+#       define _VARGCOUNT_EMPTY_0(args...) _EXPAND(_ARG_100(args, \
+            100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81, \
+            80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61, \
+            60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41, \
+            40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21, \
+            20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1))
+#       define VARGCOUNT(args...) CONCATENATE( \
+            _VARGCOUNT_EMPTY_, _IS_EMPTY(args))(args)
+#       define VARGEMPTY(args...) CONCATENATE(_VARGISEMPTY_, _IS_EMPTY(args))
+#   else
+        __extension__
+#       define __TUPHEAD_(x, ...) x
+        ;__extension__
+#       define _TUPHEAD(...) VARGPACK(__TUPHEAD_(__VA_ARGS__,))
+        ;__extension__
+#       define __TUPTAIL_(x, ...) (__VA_ARGS__)
+        ;__extension__
+#       define _TUPTAIL(...) VARGPACK(__TUPTAIL_(__VA_ARGS__))
+        ;__extension__
+#       define _ARG_100(_,\
+            _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85, \
+            _84,_83,_82,_81,_80,_79,_78,_77,_76,_75,_74,_73,_72,_71,_70,_69, \
+            _68,_67,_66,_65,_64,_63,_62,_61,_60,_59,_58,_57,_56,_55,_54,_53, \
+            _52,_51,_50,_49,_48,_47,_46,_45,_44,_43,_42,_41,_40,_39,_38,_37, \
+            _36,_35,_34,_33,_32,_31,_30,_29,_28,_27,_26,_25,_24,_23,_22,_21, \
+            _20,_19,_18,_17,_16,_15,_14,_13,_12,_11,_10,_9,_8,_7,_6,_5,_4,_3, \
+            _2,X_,...) X_
+        ;__extension__
+#       define _HAS_COMMA(...) _EXPAND(_ARG_100(__VA_ARGS__, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0))
+        ;__extension__
+#       define _TRIGGER_PARENTHESIS_(...) ,
+        ;__extension__
+#       define _IS_EMPTY(...)  __IS_EMPTY_( \
+            _HAS_COMMA(__VA_ARGS__), \
+            _HAS_COMMA(_TRIGGER_PARENTHESIS_ __VA_ARGS__), \
+            _HAS_COMMA(__VA_ARGS__ (/*empty*/)), \
+            _HAS_COMMA(_TRIGGER_PARENTHESIS_ __VA_ARGS__ (/*empty*/)))
+        ;__extension__
+#       define _VARGCOUNT_EMPTY_1(...) 0
+        ;__extension__
+#       define _VARGCOUNT_EMPTY_0(...) _EXPAND(_ARG_100(__VA_ARGS__, \
+            100,99,98,97,96,95,94,93,92,91,90,89,88,87,86,85,84,83,82,81, \
+            80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61, \
+            60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41, \
+            40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21, \
+            20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1))
+        ;__extension__
+#       define VARGCOUNT(...) CONCATENATE( \
+            _VARGCOUNT_EMPTY_, _IS_EMPTY(__VA_ARGS__))(__VA_ARGS__)
+        ;__extension__
+#       define VARGEMPTY(...) CONCATENATE(_VARGISEMPTY_, _IS_EMPTY(__VA_ARGS__))
+        ;__extension__
+#       define PREFIX_COMMA(...) CONCATENATE(_COMMA_, VARGEMPTY(__VA_ARGS__))
+        ;
+#   endif
+#   define _VARGAPPLY0(name, extra, sep, args)
+#   define _VARGAPPLY1(name, extra, sep, args) name(extra, _TUPHEAD args)
+#   define _VARGAPPLY2(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY1(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+		_VARGAPPLY1(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY3(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY2(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY2(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY4(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY3(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY3(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY5(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY4(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY4(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY6(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY5(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY5(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY7(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY6(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY6(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY8(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY7(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY7(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY9(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY8(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY8(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY10(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY9(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY9(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY11(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY10(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY10(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY12(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY11(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY11(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY13(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY12(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY12(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY14(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY13(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY13(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY15(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY14(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY14(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY16(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY15(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY15(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY17(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY16(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY16(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY18(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY17(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY17(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY19(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY18(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY18(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY20(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY19(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY19(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY21(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY20(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY20(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY22(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY21(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY21(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY23(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY22(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY22(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY24(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY23(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY23(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY25(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY24(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY24(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY26(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY25(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY25(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY27(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY26(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY26(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY28(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY27(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY27(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY29(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY28(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY28(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY30(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY29(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY29(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY31(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY30(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY30(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY32(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY31(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY31(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY33(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY32(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY32(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY34(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY33(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY33(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY35(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY34(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY34(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY36(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY35(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY35(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY37(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY36(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY36(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY38(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY37(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY37(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY39(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY38(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY38(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY40(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY39(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY39(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY41(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY40(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY40(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY42(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY41(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY41(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY43(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY42(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY42(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY44(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY43(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY43(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY45(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY44(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY44(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY46(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY45(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY45(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY47(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY46(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY46(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY48(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY47(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY47(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY49(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY48(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY48(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY50(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY49(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY49(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY51(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY50(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY50(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY52(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY51(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY51(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY53(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY52(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY52(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY54(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY53(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY53(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY55(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY54(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY54(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY56(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY55(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY55(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY57(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY56(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY56(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY58(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY57(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY57(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY59(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY58(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY58(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY60(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY59(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY59(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY61(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY60(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY60(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY62(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY61(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY61(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY63(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY62(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY62(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY64(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY63(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY63(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY65(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY64(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY64(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY66(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY65(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY65(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY67(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY66(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY66(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY68(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY67(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY67(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY69(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY68(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY68(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY70(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY69(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY69(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY71(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY70(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY70(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY72(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY71(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY71(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY73(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY72(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY72(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY74(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY73(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY73(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY75(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY74(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY74(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY76(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY75(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY75(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY77(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY76(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY76(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY78(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY77(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY77(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY79(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY78(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY78(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY80(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY79(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY79(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY81(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY80(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY80(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY82(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY81(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY81(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY83(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY82(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY82(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY84(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY83(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY83(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY85(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY84(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY84(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY86(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY85(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY85(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY87(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY86(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY86(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY88(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY87(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY87(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY89(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY88(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY88(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY90(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY89(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY89(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY91(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY90(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY90(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY92(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY91(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY91(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY93(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY92(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY92(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY94(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY93(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY93(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY95(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY94(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY94(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY96(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY95(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY95(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY97(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY96(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY96(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY98(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY97(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY97(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY99(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY98(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY98(name, extra, sep, _TUPTAIL args)
+#   define _VARGAPPLY100(name, extra, sep, args) \
+        name(extra, _TUPHEAD args) \
+        _PASTE3(_INVOKE_IF_NOT_LAST_, \
+            VARGEMPTY(name(extra, _TUPHEAD args)), \
+            VARGEMPTY(_VARGAPPLY99(name, extra, sep, _TUPTAIL args)) \
+        )(sep) \
+        _VARGAPPLY99(name, extra, sep, _TUPTAIL args)
+#   define VARGAPPLY(name, extra, args, sep) \
+        CONCATENATE(_VARGAPPLY, VARGCOUNT args)(name, extra, sep, args)
+
+#   define _VARGEACH(name, args) name(args)
+#   define VARGEACH(name, args, sep) VARGAPPLY(_VARGEACH, name, args, sep)
+#endif
+
+#endif
 
 /* == COMPILER & ARCHITECTURE STRING ======================================== */
+
+#ifndef COMPILER_NAME
 
 /**
  * @def COMPILER_NAME
@@ -223,14 +1055,14 @@
  * @brief Name of the processor or machine architecture the source code is being
  *        compiled for.
  */
-#if (defined(_WIN64) || defined(__WIN32__) || defined(__WIN32) || \
-    defined(__WINDOWS__) ||  defined(__WIN64) || defined(__WIN64__) || \
-    defined(__TOS_WIN__)) && !defined(_WIN32)
+#if (defined(_WIN64) || defined(__WIN32__) || defined(__WIN32) \
+    || defined(__WINDOWS__) ||  defined(__WIN64) || defined(__WIN64__) \
+    || defined(__TOS_WIN__)) && !defined(_WIN32)
 #   define _WIN32 1
 #endif
-#if defined(_WIN32) && (defined(__x86_64__) || defined(__aarch64__) || \
-    defined(__ia64__) || defined(__powerpc64__) || defined(__WIN64) || \
-    defined(__WIN64__)) && !defined(_WIN64)
+#if defined(_WIN32) && (defined(__x86_64__) || defined(__aarch64__) \
+    || defined(__ia64__) || defined(__powerpc64__) || defined(__WIN64) \
+    || defined(__WIN64__)) && !defined(_WIN64)
 #   define _WIN64 1
 #endif
 #if (defined(_WIN32) || defined(__MINGW32__)) && !defined(__WINRT__)
@@ -242,8 +1074,8 @@
 #   ifdef _HAS_WINAPIFAMILY
 #       undef _HAS_WINAPIFAMILY
 #       include <winapifamily.h>
-#       if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) && \
-            WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
+#       if !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP) \
+            && WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_APP)
 #           define __WINRT__ 1
 #       endif
 #   endif
@@ -608,6 +1440,51 @@
 #   define COMPILER_NAME \
         "ARM RealView " STRINGIFY(__MACRODEFS_ARMCC_MAJOR) \
         "." STRINGIFY(__MACRODEFS_ARMCC_MINOR)
+#elif defined(__CA__)
+#   if __CA__ / 100000 == 1
+#       define __MACRODEFS_KEIL_MAJOR 1
+#   elif __CA__ / 100000 == 2
+#       define __MACRODEFS_KEIL_MAJOR 2
+#   elif __CA__ / 100000 == 3
+#       define __MACRODEFS_KEIL_MAJOR 3
+#   elif __CA__ / 100000 == 4
+#       define __MACRODEFS_KEIL_MAJOR 4
+#   elif __CA__ / 100000 == 5
+#       define __MACRODEFS_KEIL_MAJOR 5
+#   elif __CA__ / 100000 == 6
+#       define __MACRODEFS_KEIL_MAJOR 6
+#   elif __CA__ / 100000 == 7
+#       define __MACRODEFS_KEIL_MAJOR 7
+#   elif __CA__ / 100000 == 8
+#       define __MACRODEFS_KEIL_MAJOR 8
+#   elif __CA__ / 100000 == 9
+#       define __MACRODEFS_KEIL_MAJOR 9
+#   else
+#       define __MACRODEFS_KEIL_MAJOR 0
+#   endif
+#   if (__CA__ % 10000) / 10 == 1
+#       define __MACRODEFS_KEIL_MINOR 1
+#   elif (__CA__ % 10000) / 10 == 2
+#       define __MACRODEFS_KEIL_MINOR 2
+#   elif (__CA__ % 10000) / 10 == 3
+#       define __MACRODEFS_KEIL_MINOR 3
+#   elif (__CA__ % 10000) / 10 == 4
+#       define __MACRODEFS_KEIL_MINOR 4
+#   elif (__CA__ % 10000) / 10 == 5
+#       define __MACRODEFS_KEIL_MINOR 5
+#   elif (__CA__ % 10000) / 10 == 6
+#       define __MACRODEFS_KEIL_MINOR 6
+#   elif (__CA__ % 10000) / 10 == 7
+#       define __MACRODEFS_KEIL_MINOR 7
+#   elif (__CA__ % 10000) / 10 == 8
+#       define __MACRODEFS_KEIL_MINOR 8
+#   elif (__CA__ % 10000) / 10 == 9
+#       define __MACRODEFS_KEIL_MINOR 9
+#   else
+#       define __MACRODEFS_KEIL_MINOR 0
+#   endif
+#   define COMPILER_NAME "KEIL CARM" STRINGIFY(__MACRODEFS_KEIL_MAJOR) \
+        "." STRINGIFY(__MACRODEFS_KEIL_MINOR)
 #elif defined(__WATCOMC__)
 #   if __WATCOMC__ / 100 == 1
 #       define __MACRODEFS_WATCOM_MAJOR 1
@@ -729,6 +1606,10 @@
 #       define __MACRODEFS_MSVC "2019 16.10"
 #   elif _MSC_VER == 1930
 #       define __MACRODEFS_MSVC "2022 17.0"
+#   elif _MSC_VER == 1931
+#       define __MACRODEFS_MSVC "2022 17.1"
+#   elif _MSC_VER == 1932
+#       define __MACRODEFS_MSVC "2022 17.2"
 #   endif
 #   ifdef __MACRODEFS_MSVC
 #       define COMPILER_NAME "Microsoft Visual C/C++ " __MACRODEFS_MSVC
@@ -864,16 +1745,21 @@
 #       define __AIX__ 1
 #   endif
 #   define OS_NAME "AIX"
-#elif defined(sgi) || defined(__sgi) || defined(__sgi__) || \
-    defined(_SGI_SOURCE) || defined(__IRIX__)
+#elif defined(sgi) || defined(__sgi) || defined(__sgi__) \
+    || defined(_SGI_SOURCE) || defined(__IRIX__)
 #   ifndef __IRIX__
 #       define __IRIX__ 1
 #   endif
 #   define OS_NAME "Irix"
 #elif defined(__ros__)
 #   define OS_NAME "Akaros"
-#elif defined(riscos) || defined(__riscos) || defined(__riscos__) || \
-    defined(__RISCOS__)
+#elif defined(__osf__) || defined(__osf)
+#   ifndef __osf__
+#       define __osf__ 1
+#   endif
+#   define OS_NAME "Tru64"
+#elif defined(riscos) || defined(__riscos) || defined(__riscos__) \
+    || defined(__RISCOS__)
 #   ifndef __riscos__
 #       define __riscos__ 1
 #   endif
@@ -910,8 +1796,8 @@
 #       define OS_NAME "iOS [simulated]"
 #   endif
 #elif defined(__sun)
-#   if defined(__SVR4) || defined(__svr4__) || defined(_SYSTYPE_SVR4) || \
-        defined(__SOLARIS__)
+#   if defined(__SVR4) || defined(__svr4__) || defined(_SYSTYPE_SVR4) \
+    || defined(__SOLARIS__)
 #       ifndef __SOLARIS__
 #           define __SOLARIS__ 1
 #       endif
@@ -984,8 +1870,8 @@
 #   define ARCH_NAME "wasm32"
 #elif defined(__riscv)
 #   define ARCH_NAME "RISC-V" STRINGIFY(__riscv_xlen)
-#elif defined(__x86_64__) || defined(_M_X64) || defined(__x86_64) || \
-    defined(__amd64__) || defined(__amd64) || defined(_M_AMD64)
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__x86_64) \
+    || defined(__amd64__) || defined(__amd64) || defined(_M_AMD64)
 #   define ARCH_NAME "x64"
 #   ifndef __x86_64__
 #       define __x86_64__ 1
@@ -999,10 +1885,10 @@
 #   ifndef __SSE__
 #       define __SSE__ 1
 #   endif
-#elif defined(__i386__) || defined(__i386) || defined(_M_IX86) || \
-    defined(__THW_INTEL__) || defined(_M_I86) || defined(__386) || \
-    defined(_X86_) || defined(__i386) || defined(i386) || defined(__IA32__) || \
-    defined(__X86__) || defined(__INTEL__) || defined(__386__)
+#elif defined(__i386__) || defined(__i386) || defined(_M_IX86) \
+    || defined(__THW_INTEL__) || defined(_M_I86) || defined(__386) \
+    || defined(_X86_) || defined(__i386) || defined(i386) || defined(__IA32__) \
+    || defined(__X86__) || defined(__INTEL__) || defined(__386__)
 #   define ARCH_NAME "i386"
 #   ifndef __i386__
 #       define __i386__ 1
@@ -1015,40 +1901,42 @@
 #   ifndef __aarch64__
 #       define __aarch64__ 1
 #   endif
-#elif defined(_M_ARM) || defined(__arm__) || defined(_ARM) || \
-    defined(_M_ARM) || defined(__arm)
+#elif defined(_M_ARM) || defined(__arm__) || defined(_ARM) \
+    || defined(_M_ARM) || defined(__arm) \
+    || (defined(__ARM_ARCH) && __ARM_ARCH == 7)
 #   define ARCH_NAME "ARM32"
 #   ifndef __arm__
 #       define __arm__ 1
 #   endif
-#elif defined(__ia64__) || defined(_IA64) || defined(__IA64__) || \
-    defined(__ia64) || defined(_M_IA64) || defined(__itanium__)
+#elif defined(__ia64__) || defined(_IA64) || defined(__IA64__) \
+    || defined(__ia64) || defined(_M_IA64) || defined(__itanium__)
 #   define ARCH_NAME "Itanium"
 #   ifndef __ia64__
 #       define __ia64__ 1
 #   endif
-#elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) || \
-    defined(_ARCH_PPC64)
+#elif defined(__powerpc64__) || defined(__ppc64__) || defined(__PPC64__) \
+    || defined(_ARCH_PPC64)
 #   define ARCH_NAME "Power64"
 #   ifndef __powerpc64__
 #       define __powerpc64__ 1
 #   endif
-#elif defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__) || \
-    defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC) || \
-    defined(_M_PPC) || defined(__ppc)
+#elif defined(__powerpc) || defined(__powerpc__) || defined(__POWERPC__) \
+    || defined(__ppc__) || defined(__PPC__) || defined(_ARCH_PPC) \
+    || defined(_M_PPC) || defined(__ppc)
 #   define ARCH_NAME "PowerPC"
 #   ifndef __powerpc__
 #       define __powerpc__ 1
 #   endif
-#elif defined(__sh__) || defined(__sh1__) || defined(__sh2__) || \
-    defined(__sh3__) || defined(__SH3__) || defined(__SH4__) || defined(__SH5__)
+#elif defined(__sh__) || defined(__sh1__) || defined(__sh2__) \
+    || defined(__sh3__) || defined(__SH3__) || defined(__SH4__) \
+    || defined(__SH5__)
 #   define ARCH_NAME "SuperH"
 #   ifndef __sh__
 #       define __sh__ 1
 #   endif
-#elif defined(__mips) || defined(mips) || defined(_MIPS_ISA) || \
-    defined(_R3000) || defined(_R4000) || defined(_R5900) || \
-    defined(__MIPS__) || defined(__mips__)
+#elif defined(__mips) || defined(mips) || defined(_MIPS_ISA) \
+    || defined(_R3000) || defined(_R4000) || defined(_R5900) \
+    || defined(__MIPS__) || defined(__mips__)
 #   define ARCH_NAME "MIPS"
 #   ifndef __mips__
 #       define __mips__ 1
@@ -1082,10 +1970,10 @@
 #   if defined(__sparcv9) && !defined(__sparc_v9__)
 #       define __sparc_v9__ __sparcv9
 #   endif
-#elif defined(__m68k__) || defined(M68000) || defined(__MC68K__) || \
-    defined(__mc68000__) || defined(__MC68000__) || defined(__mc68010__) || \
-    defined(__mc68020__) || defined(__MC68020__) || defined(__mc68030__) || \
-    defined(__MC68030__) || defined(__mc68040__) || defined(__mc68060__)
+#elif defined(__m68k__) || defined(M68000) || defined(__MC68K__) \
+    || defined(__mc68000__) || defined(__MC68000__) || defined(__mc68010__) \
+    || defined(__mc68020__) || defined(__MC68020__) || defined(__mc68030__) \
+    || defined(__MC68030__) || defined(__mc68040__) || defined(__mc68060__)
 #   define ARCH_NAME "M68000"
 #   ifndef __m68k__
 #       define __m68k__ 1
@@ -1093,16 +1981,63 @@
 #else
 #   define ARCH_NAME "(unknown)"
 #endif /* check for ARM thumb instruction support */
-#if (defined(__arm__) || defined(__aarch64__)) && \
-    (defined(_M_ARMT) || defined(__TARGET_ARCH_THUMB)) && !defined(__thumb__)
+#if (defined(__arm__) || defined(__aarch64__)) \
+    && (defined(_M_ARMT) || defined(__TARGET_ARCH_THUMB)) && !defined(__thumb__)
 #   define __thumb__ 1
 #endif
+#if ((defined(__arm__) && defined(__ARM_NEON__)) || defined(__aarch64__)) \
+    && !defined(__ARM_NEON) /* check for ARM neon support */
+#   define __ARM_NEON 1
+#endif
+#if defined(__VEC__) && !defined(__ALTIVEC__)
+#   define __ALTIVEC__ 1
+#endif
+#if defined(__WINRT__) && (defined(__arm__) || defined(__aarch64__)) \
+    && !defined(__ARM_NEON) /* winrt requires ARM neon support */
+#   define __ARM_NEON 1
+#endif
+#if defined(__ARM_ARCH) && __ARM_ARCH >= 9
+#   ifndef __ARM_FEATURE_SVE
+#       define __ARM_FEATURE_SVE 1
+#   endif
+#   ifndef __ARM_FEATURE_SVE2
+#       define __ARM_FEATURE_SVE2 1
+#   endif
+#endif
 
-#if defined(__aarch64__) || defined(__x86_64__) || defined(__ia64__) || \
-    defined(__powerpc64__) || (defined(__riscv_xlen) && (__riscv_xlen == 64))
-#   define WORD_SIZE 64
-#else
-#   define WORD_SIZE 32
+#endif
+
+/* == STANDARD MACROS TO DENOTE MISSING FEATURES ============================ */
+
+/**
+ * @def __STDC_NO_VLA__
+ * @brief A standard macro that declares a C implementation which does not
+ *        support variable-length arrays.
+ */
+/**
+ * @def __STDC_NO_THREADS__
+ * @brief A standard macro that declares a C implementation which does not
+ *        support the standard thread support library via @c <threads.h>.
+ */
+/**
+ * @def __STDC_NO_ATOMICS__
+ * @brief A standard macro that declares a C implementation which does not
+ *        support standard atomics via the @c _Atomic keyword or
+ *        @c <stdatomic.h>.
+ */
+#if (STDC_PREREQ(1L) && (!STDC_PREREQ(199901L) || defined(SDCC))) \
+    && !defined(__STDC_NO_VLA__)
+#   define __STDC_NO_VLA__ 1
+#endif
+#if ((STDC_PREREQ(1L) && !STDC_PREREQ(201112L)) \
+    || (defined(__has_include) && !__has_include(<threads.h>))) \
+    && !defined(__STDC_NO_THREADS__)
+#   define __STDC_NO_THREADS__ 1
+#endif
+#if ((STDC_PREREQ(1L) && !STDC_PREREQ(201112L)) \
+    || (defined(__has_include) && !__has_include(<stdatomic.h>))) \
+    && !defined(__STDC_NO_ATOMICS__)
+#   define __STDC_NO_ATOMICS__ 1
 #endif
 
 /* == PREPROCESSOR CHECKERS ================================================= */
@@ -1183,63 +2118,138 @@
 #       define __macrodefs_attribute_noreturn               1
 #       define __macrodefs_attribute_weak                   1
 #       define __macrodefs_attribute_weakref                1
-#   elif defined(__GNUC__) /* GCC didn't get __has_attribute until GCC5 */
-#       define __macrodefs_attribute_alias                  1
-#       define __macrodefs_attribute_always_inline          1
-#       define __macrodefs_attribute_cdecl                  1
-#       define __macrodefs_attribute_constructor            1
-#       define __macrodefs_attribute_deprecated             1
-#       define __macrodefs_attribute_destructor             1
-#       define __macrodefs_attribute_dllimport              1
-#       define __macrodefs_attribute_dllexport              1
-#       define __macrodefs_attribute_mode                   1
-#       define __macrodefs_attribute_no_instrument_function 1
-#       define __macrodefs_attribute_nocommon               1
-#       define __macrodefs_attribute_noinline               1
-#       define __macrodefs_attribute_packed                 1
-#       define __macrodefs_attribute_regparm                1
-#       define __macrodefs_attribute_section                1
-#       define __macrodefs_attribute_shared                 1
-#       define __macrodefs_attribute_stdcall                1
-#       define __macrodefs_attribute_transparent_union      1
-#       define __macrodefs_attribute_warn_unused_result     1
-#       define __macrodefs_attribute_weak                   1
-#       define __macrodefs_attribute_weakref                1
-#       if defined(__powerpc__) || defined(__powerpc64__)
-#           define __macrodefs_attribute_longcall           1
+#   elif defined(__GNUC__) /* GCC<5 doesn't have __has_attribute */
+#       define __macrodefs_attribute_alias                      1
+#       define __macrodefs_attribute___alias__                  1
+#       define __macrodefs_attribute_always_inline              1
+#       define __macrodefs_attribute___always_inline__          1
+#       define __macrodefs_attribute_cdecl                      1
+#       define __macrodefs_attribute___cdecl__                  1
+#       define __macrodefs_attribute_constructor                1
+#       define __macrodefs_attribute___constructor__            1
+#       define __macrodefs_attribute_deprecated                 1
+#       define __macrodefs_attribute___deprecated__             1
+#       define __macrodefs_attribute_destructor                 1
+#       define __macrodefs_attribute___destructor__             1
+#       define __macrodefs_attribute_dllimport                  1
+#       define __macrodefs_attribute___dllimport__              1
+#       define __macrodefs_attribute_dllexport                  1
+#       define __macrodefs_attribute___dllexport__              1
+#       define __macrodefs_attribute_mode                       1
+#       define __macrodefs_attribute___mode__                   1
+#       define __macrodefs_attribute_no_instrument_function     1
+#       define __macrodefs_attribute___no_instrument_function__ 1
+#       define __macrodefs_attribute_nocommon                   1
+#       define __macrodefs_attribute___nocommon__               1
+#       define __macrodefs_attribute_noinline                   1
+#       define __macrodefs_attribute___noinline__               1
+#       define __macrodefs_attribute_packed                     1
+#       define __macrodefs_attribute___packed__                 1
+#       define __macrodefs_attribute_regparm                    1
+#       define __macrodefs_attribute___regparm__                1
+#       define __macrodefs_attribute_section                    1
+#       define __macrodefs_attribute___section__                1
+#       define __macrodefs_attribute_stdcall                    1
+#       define __macrodefs_attribute___stdcall__                1
+#       define __macrodefs_attribute_transparent_union          1
+#       define __macrodefs_attribute___transparent_union__      1
+#       define __macrodefs_attribute_warn_unused_result         1
+#       define __macrodefs_attribute___warn_unused_result__     1
+#       define __macrodefs_attribute_weak                       1
+#       define __macrodefs_attribute___weak__                   1
+#       define __macrodefs_attribute_weakref                    1
+#       define __macrodefs_attribute___weakref__                1
+#       if defined(__powerpc__) || defined(__powerpc64__) \
+            || defined(__THW_RS6000) || defined(_IBMR2)
+#           define __macrodefs_attribute_longcall               1
+#           define __macrodefs_attribute___longcall__           1
+#       endif
+#       ifdef _WIN32
+#           define __macrodefs_attribute_shared                 1
+#           define __macrodefs_attribute___shared__             1
 #       endif
 #       if GCC_PREREQ(20000)
-#           define __macrodefs_attribute_aligned            1
-#           define __macrodefs_attribute_format_arg         1
-#           define __macrodefs_attribute_unused             1
-#           define __macrodefs_attribute_used               1
+#           define __macrodefs_attribute_aligned                1
+#           define __macrodefs_attribute___aligned__            1
+#           define __macrodefs_attribute_format_arg             1
+#           define __macrodefs_attribute___format_arg__         1
+#           define __macrodefs_attribute_unused                 1
+#           define __macrodefs_attribute___unused__             1
+#           define __macrodefs_attribute_used                   1
+#           define __macrodefs_attribute___used__               1
 #       endif
 #       if GCC_PREREQ(20500)
-#           define __macrodefs_attribute_const              1
-#           define __macrodefs_attribute_noreturn           1
+#           define __macrodefs_attribute_const                  1
+#           define __macrodefs_attribute___const__              1
+#           define __macrodefs_attribute_noreturn               1
+#           define __macrodefs_attribute___noreturn__           1
 #       endif
 #       if GCC_PREREQ(29600)
-#           define __macrodefs_attribute_pure               1
+#           define __macrodefs_attribute_pure                   1
+#           define __macrodefs_attribute___pure__               1
 #       endif
 #       if GCC_PREREQ(30000)
-#           define __macrodefs_attribute_format             1
-#           define __macrodefs_attribute_may_alias          1
+#           define __macrodefs_attribute_format                 1
+#           define __macrodefs_attribute___format__             1
+#           define __macrodefs_attribute_may_alias              1
+#           define __macrodefs_attribute___may_alias__          1
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_attribute_init_priority      1
+#               define __macrodefs_attribute___init_priority__  1
+#               define __macrodefs_attribute_java_interface     1
+#               define __macrodefs_attribute___java_interface__ 1
+#           endif
 #       endif
 #       if GCC_PREREQ(30100)
-#           define __macrodefs_attribute_malloc             1
+#           define __macrodefs_attribute_malloc                 1
+#           define __macrodefs_attribute___malloc__             1
 #       endif
 #       if GCC_PREREQ(30200)
-#           define __macrodefs_attribute_malloc             1
-#           define __macrodefs_attribute_vector_size        1
+#           define __macrodefs_attribute_vector_size            1
+#           define __macrodefs_attribute___vector_size__        1
+#       endif
+#       if GCC_PREREQ(30300)
+#           define __macrodefs_attribute_nothrow                1
+#           define __macrodefs_attribute___nothrow__            1
+#       endif
+#       if GCC_PREREQ(30400) && CPP_PREREQ(1L)
+#           define __macrodefs_attribute_strong                 1
+#           define __macrodefs_attribute___strong__             1
 #       endif
 #       if GCC_PREREQ(40000)
-#           define __macrodefs_attribute_visibility         1
+#           define __macrodefs_attribute_visibility             1
+#           define __macrodefs_attribute___visibility__         1
+#       endif
+#       if GCC_PREREQ(40103) || defined(__GNUC_GNU_INLINE__) \
+            || defined(__GNUC_STDC_INLINE__)
+#           define __macrodefs_attribute_gnu_inline             1
+#           define __macrodefs_attribute___gnu_inline__         1
+#       else /* notify that GCC is using GNU C inline semantics */
+#           define __GNUC_GNU_INLINE__                          1
 #       endif
 #       if GCC_PREREQ(40300)
-#           define __macrodefs_attribute_error              1
+#           define __macrodefs_attribute_error                  1
+#           define __macrodefs_attribute___error__              1
+#           define __macrodefs_attribute_hot                    1
+#           define __macrodefs_attribute___hot__                1
+#           define __macrodefs_attribute_cold                   1
+#           define __macrodefs_attribute___cold__               1
 #       endif
 #       if GCC_PREREQ(40600)
-#           define __macrodefs_attribute_ifunc              1
+#           define __macrodefs_attribute_ifunc                  1
+#           define __macrodefs_attribute___ifunc__              1
+#       endif
+#       if GCC_PREREQ(40800) && CPP_PREREQ(1L)
+#           define __macrodefs_attribute_abi_tag                1
+#           define __macrodefs_attribute___abi_tag__            1
+#           if defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_attribute_target             1
+#               define __macrodefs_attribute___target__         1
+#           endif
+#       endif
+#       if GCC_PREREQ(40900)
+#           define __macrodefs_attribute_warn_unused            1
+#           define __macrodefs_attribute___warn_unused__        1
 #       endif
 #   else
 #       define __attribute__(x)
@@ -1247,15 +2257,771 @@
 #   define __has_attribute(x) __macrodefs_attribute_ ##x
 #endif
 #ifndef __has_builtin
-#   define __has_builtin(x) 0L
+#   ifdef __TINYC__
+#       define __macrodefs_builtin___builtin_types_compatible_p 1
+#       define __macrodefs_builtin___builtin_constant_p 1
+#   elif defined(__GNUC__) /* GCC<10 doesn't have __has_builtin */
+#       define __macrodefs_builtin___builtin_apply_args 1
+#       define __macrodefs_builtin___builtin_apply 1
+#       define __macrodefs_builtin___builtin_return 1
+#       define __macrodefs_builtin___builtin_return_address 1
+#       define __macrodefs_builtin___builtin_frame_address 1
+#       define __macrodefs_builtin___builtin_constant_p 1
+#       define __macrodefs_builtin___builtin_alloca 1
+#       define __macrodefs_builtin___builtin_memcpy 1
+#       define __macrodefs_builtin___builtin_memcmp 1
+#       define __macrodefs_builtin___builtin_strcpy 1
+#       define __macrodefs_builtin___builtin_strcmp 1
+#       define __macrodefs_builtin___builtin_strlen 1
+#       define __macrodefs_builtin___builtin_ffs 1
+#       define __macrodefs_builtin___builtin_abs 1
+#       define __macrodefs_builtin___builtin_fabs 1
+#       define __macrodefs_builtin___builtin_labs 1
+#       define __macrodefs_builtin___builtin_fabsf 1
+#       define __macrodefs_builtin___builtin_fabsl 1
+#       define __macrodefs_builtin___builtin_fabsl 1
+#       define __macrodefs_builtin___builtin_sqrt 1
+#       define __macrodefs_builtin___builtin_sqrtf 1
+#       define __macrodefs_builtin___builtin_sqrtl 1
+#       define __macrodefs_builtin___builtin_sin 1
+#       define __macrodefs_builtin___builtin_sinf 1
+#       define __macrodefs_builtin___builtin_sinl 1
+#       define __macrodefs_builtin___builtin_cos 1
+#       define __macrodefs_builtin___builtin_cosf 1
+#       define __macrodefs_builtin___builtin_cosl 1
+#       if GCC_PREREQ(30000)
+#           define __macrodefs_builtin___builtin_bcmp 1
+#           define __macrodefs_builtin___builtin_bzero 1
+#           define __macrodefs_builtin___builtin_index 1
+#           define __macrodefs_builtin___builtin_rindex 1
+#           define __macrodefs_builtin___builtin_fprintf 1
+#           define __macrodefs_builtin___builtin_fputs 1
+#           define __macrodefs_builtin___builtin_memset 1
+#           define __macrodefs_builtin___builtin_printf 1
+#           define __macrodefs_builtin___builtin_strcat 1
+#           define __macrodefs_builtin___builtin_strchr 1
+#           define __macrodefs_builtin___builtin_strcspn 1
+#           define __macrodefs_builtin___builtin_strncat 1
+#           define __macrodefs_builtin___builtin_strncmp 1
+#           define __macrodefs_builtin___builtin_strncpy 1
+#           define __macrodefs_builtin___builtin_strpbrk 1
+#           define __macrodefs_builtin___builtin_strrchr 1
+#           define __macrodefs_builtin___builtin_strspn 1
+#           define __macrodefs_builtin___builtin_strstr 1
+#           define __macrodefs_builtin___builtin_isgreater 1
+#           define __macrodefs_builtin___builtin_isgreaterequal 1
+#           define __macrodefs_builtin___builtin_isless 1
+#           define __macrodefs_builtin___builtin_islessequal 1
+#           define __macrodefs_builtin___builtin_islessgreater 1
+#           define __macrodefs_builtin___builtin_isunordered 1
+#           define __macrodefs_builtin___builtin_expect 1
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_conj 1
+#               define __macrodefs_builtin___builtin_conjf 1
+#               define __macrodefs_builtin___builtin_conjl 1
+#               define __macrodefs_builtin___builtin_creal 1
+#               define __macrodefs_builtin___builtin_crealf 1
+#               define __macrodefs_builtin___builtin_creall 1
+#               define __macrodefs_builtin___builtin_cimag 1
+#               define __macrodefs_builtin___builtin_cimagf 1
+#               define __macrodefs_builtin___builtin_cimagl 1
+#               define __macrodefs_builtin___builtin_llabs 1
+#               define __macrodefs_builtin___builtin_imaxabs 1
+#           endif
+#       endif
+#       if GCC_PREREQ(30100)
+#           define __macrodefs_builtin___builtin_fputs_unlocked 1
+#           define __macrodefs_builtin___builtin_fprintf_unlocked 1
+#           define __macrodefs_builtin___builtin_printf_unlocked 1
+#           define __macrodefs_builtin___builtin_prefetch 1
+#           if STDC_PREREQ(1L)
+#               define __macrodefs_builtin___builtin_types_compatible_p 1
+#               define __macrodefs_builtin___builtin_choose_expr 1
+#           endif
+#       endif
+#       if GCC_PREREQ(30300)
+#           define __macrodefs_builtin___builtin_abort 1
+#           define __macrodefs_builtin___builtin_exit 1
+#           define __macrodefs_builtin___builtin__exit 1
+#           define __macrodefs_builtin___builtin_putchar 1
+#           define __macrodefs_builtin___builtin_puts 1
+#           define __macrodefs_builtin___builtin_scanf 1
+#           define __macrodefs_builtin___builtin_sscanf 1
+#           define __macrodefs_builtin___builtin_vprintf 1
+#           define __macrodefs_builtin___builtin_vsprintf 1
+#           define __macrodefs_builtin___builtin_log 1
+#           define __macrodefs_builtin___builtin_logf 1
+#           define __macrodefs_builtin___builtin_logl 1
+#           define __macrodefs_builtin___builtin_huge_val 1
+#           define __macrodefs_builtin___builtin_huge_valf 1
+#           define __macrodefs_builtin___builtin_huge_vall 1
+#           define __macrodefs_builtin___builtin_inf 1
+#           define __macrodefs_builtin___builtin_inff 1
+#           define __macrodefs_builtin___builtin_infl 1
+#           define __macrodefs_builtin___builtin_nan 1
+#           define __macrodefs_builtin___builtin_nanf 1
+#           define __macrodefs_builtin___builtin_nanl 1
+#           define __macrodefs_builtin___builtin_nans 1
+#           define __macrodefs_builtin___builtin_nansf 1
+#           define __macrodefs_builtin___builtin_nansl 1
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin__Exit 1
+#               define __macrodefs_builtin___builtin_snprintf 1
+#               define __macrodefs_builtin___builtin_vscanf 1
+#               define __macrodefs_builtin___builtin_vsnprintf 1
+#               define __macrodefs_builtin___builtin_vsscanf 1
+#           endif
+#           if defined(__osf__)
+#               define __macrodefs_builtin___builtin_thread_pointer 1
+#               define __macrodefs_builtin___builtin_set_thread_pointer 1
+#           endif
+#       endif
+#       if GCC_PREREQ(30400)
+#           define __macrodefs_builtin___builtin_dcgettext 1
+#           define __macrodefs_builtin___builtin_dgettext 1
+#           define __macrodefs_builtin___builtin_drem 1
+#           define __macrodefs_builtin___builtin_dremf 1
+#           define __macrodefs_builtin___builtin_dreml 1
+#           define __macrodefs_builtin___builtin_exp10 1
+#           define __macrodefs_builtin___builtin_exp10f 1
+#           define __macrodefs_builtin___builtin_exp10l 1
+#           define __macrodefs_builtin___builtin_ffs 1
+#           define __macrodefs_builtin___builtin_ffsl 1
+#           define __macrodefs_builtin___builtin_ffsll 1
+#           define __macrodefs_builtin___builtin_gamma 1
+#           define __macrodefs_builtin___builtin_gammaf 1
+#           define __macrodefs_builtin___builtin_gammal 1
+#           define __macrodefs_builtin___builtin_gettext 1
+#           define __macrodefs_builtin___builtin_j0 1
+#           define __macrodefs_builtin___builtin_j0f 1
+#           define __macrodefs_builtin___builtin_j0l 1
+#           define __macrodefs_builtin___builtin_j1 1
+#           define __macrodefs_builtin___builtin_j1f 1
+#           define __macrodefs_builtin___builtin_j1l 1
+#           define __macrodefs_builtin___builtin_jn 1
+#           define __macrodefs_builtin___builtin_jnf 1
+#           define __macrodefs_builtin___builtin_jnl 1
+#           define __macrodefs_builtin___builtin_mempcpy 1
+#           define __macrodefs_builtin___builtin_pow10 1
+#           define __macrodefs_builtin___builtin_pow10f 1
+#           define __macrodefs_builtin___builtin_pow10l 1
+#           define __macrodefs_builtin___builtin_scalb 1
+#           define __macrodefs_builtin___builtin_scalbf 1
+#           define __macrodefs_builtin___builtin_scalbl 1
+#           define __macrodefs_builtin___builtin_significand 1
+#           define __macrodefs_builtin___builtin_significandf 1
+#           define __macrodefs_builtin___builtin_significandl 1
+#           define __macrodefs_builtin___builtin_sincos 1
+#           define __macrodefs_builtin___builtin_sincosf 1
+#           define __macrodefs_builtin___builtin_sincosl 1
+#           define __macrodefs_builtin___builtin_stpcpy 1
+#           define __macrodefs_builtin___builtin_strdup 1
+#           define __macrodefs_builtin___builtin_strfmon 1
+#           define __macrodefs_builtin___builtin_y0 1
+#           define __macrodefs_builtin___builtin_y0f 1
+#           define __macrodefs_builtin___builtin_y0l 1
+#           define __macrodefs_builtin___builtin_y1 1
+#           define __macrodefs_builtin___builtin_y1f 1
+#           define __macrodefs_builtin___builtin_y1l 1
+#           define __macrodefs_builtin___builtin_yn 1
+#           define __macrodefs_builtin___builtin_ynf 1
+#           define __macrodefs_builtin___builtin_ynl 1
+#           define __macrodefs_builtin___builtin_acos 1
+#           define __macrodefs_builtin___builtin_acosf 1
+#           define __macrodefs_builtin___builtin_acosl 1
+#           define __macrodefs_builtin___builtin_asin 1
+#           define __macrodefs_builtin___builtin_asinf 1
+#           define __macrodefs_builtin___builtin_asinl 1
+#           define __macrodefs_builtin___builtin_atan 1
+#           define __macrodefs_builtin___builtin_atanf 1
+#           define __macrodefs_builtin___builtin_atanl 1
+#           define __macrodefs_builtin___builtin_atan2 1
+#           define __macrodefs_builtin___builtin_atan2f 1
+#           define __macrodefs_builtin___builtin_atan2l 1
+#           define __macrodefs_builtin___builtin_ceil 1
+#           define __macrodefs_builtin___builtin_ceilf 1
+#           define __macrodefs_builtin___builtin_ceill 1
+#           define __macrodefs_builtin___builtin_cosh 1
+#           define __macrodefs_builtin___builtin_coshf 1
+#           define __macrodefs_builtin___builtin_coshl 1
+#           define __macrodefs_builtin___builtin_sinh 1
+#           define __macrodefs_builtin___builtin_sinhf 1
+#           define __macrodefs_builtin___builtin_sinhl 1
+#           define __macrodefs_builtin___builtin_tanh 1
+#           define __macrodefs_builtin___builtin_tanhf 1
+#           define __macrodefs_builtin___builtin_tanhl 1
+#           define __macrodefs_builtin___builtin_exp 1
+#           define __macrodefs_builtin___builtin_expf 1
+#           define __macrodefs_builtin___builtin_expl 1
+#           define __macrodefs_builtin___builtin_floor 1
+#           define __macrodefs_builtin___builtin_floorf 1
+#           define __macrodefs_builtin___builtin_floorl 1
+#           define __macrodefs_builtin___builtin_fmod 1
+#           define __macrodefs_builtin___builtin_fmodf 1
+#           define __macrodefs_builtin___builtin_fmodl 1
+#           define __macrodefs_builtin___builtin_mod 1
+#           define __macrodefs_builtin___builtin_modf 1
+#           define __macrodefs_builtin___builtin_modl 1
+#           define __macrodefs_builtin___builtin_frexp 1
+#           define __macrodefs_builtin___builtin_frexpf 1
+#           define __macrodefs_builtin___builtin_frexpl 1
+#           define __macrodefs_builtin___builtin_ldexp 1
+#           define __macrodefs_builtin___builtin_ldexpf 1
+#           define __macrodefs_builtin___builtin_ldexpl 1
+#           define __macrodefs_builtin___builtin_log10 1
+#           define __macrodefs_builtin___builtin_log10f 1
+#           define __macrodefs_builtin___builtin_log10l 1
+#           define __macrodefs_builtin___builtin_log 1
+#           define __macrodefs_builtin___builtin_logf 1
+#           define __macrodefs_builtin___builtin_logl 1
+#           define __macrodefs_builtin___builtin_pow 1
+#           define __macrodefs_builtin___builtin_powf 1
+#           define __macrodefs_builtin___builtin_powl 1
+#           define __macrodefs_builtin___builtin_abort 1
+#           define __macrodefs_builtin___builtin_malloc 1
+#           define __macrodefs_builtin___builtin_calloc 1
+#           define __macrodefs_builtin___builtin_fscanf 1
+#           ifndef __macrodefs_builtin___builtin_snprintf
+#               define __macrodefs_builtin___builtin_snprintf 1
+#           endif
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_acosh 1
+#               define __macrodefs_builtin___builtin_acoshf 1
+#               define __macrodefs_builtin___builtin_acoshl 1
+#               define __macrodefs_builtin___builtin_asinh 1
+#               define __macrodefs_builtin___builtin_asinhf 1
+#               define __macrodefs_builtin___builtin_asinhl 1
+#               define __macrodefs_builtin___builtin_atanh 1
+#               define __macrodefs_builtin___builtin_atanhf 1
+#               define __macrodefs_builtin___builtin_atanhl 1
+#               define __macrodefs_builtin___builtin_cabs 1
+#               define __macrodefs_builtin___builtin_cabsf 1
+#               define __macrodefs_builtin___builtin_cabsl 1
+#               define __macrodefs_builtin___builtin_carg 1
+#               define __macrodefs_builtin___builtin_cargf 1
+#               define __macrodefs_builtin___builtin_cargl 1
+#               define __macrodefs_builtin___builtin_cacos 1
+#               define __macrodefs_builtin___builtin_cacosf 1
+#               define __macrodefs_builtin___builtin_cacosl 1
+#               define __macrodefs_builtin___builtin_cacosh 1
+#               define __macrodefs_builtin___builtin_cacoshf 1
+#               define __macrodefs_builtin___builtin_cacoshl 1
+#               define __macrodefs_builtin___builtin_casin 1
+#               define __macrodefs_builtin___builtin_casinf 1
+#               define __macrodefs_builtin___builtin_casinl 1
+#               define __macrodefs_builtin___builtin_casinh 1
+#               define __macrodefs_builtin___builtin_casinhf 1
+#               define __macrodefs_builtin___builtin_casinhl 1
+#               define __macrodefs_builtin___builtin_catan 1
+#               define __macrodefs_builtin___builtin_catanf 1
+#               define __macrodefs_builtin___builtin_catanl 1
+#               define __macrodefs_builtin___builtin_catanh 1
+#               define __macrodefs_builtin___builtin_catanhf 1
+#               define __macrodefs_builtin___builtin_catanhl 1
+#               define __macrodefs_builtin___builtin_cbrt 1
+#               define __macrodefs_builtin___builtin_cbrtf 1
+#               define __macrodefs_builtin___builtin_cbrtl 1
+#               define __macrodefs_builtin___builtin_ccos 1
+#               define __macrodefs_builtin___builtin_ccosf 1
+#               define __macrodefs_builtin___builtin_ccosl 1
+#               define __macrodefs_builtin___builtin_ccosh 1
+#               define __macrodefs_builtin___builtin_ccoshf 1
+#               define __macrodefs_builtin___builtin_ccoshl 1
+#               define __macrodefs_builtin___builtin_csin 1
+#               define __macrodefs_builtin___builtin_csinf 1
+#               define __macrodefs_builtin___builtin_csinl 1
+#               define __macrodefs_builtin___builtin_csinh 1
+#               define __macrodefs_builtin___builtin_csinhf 1
+#               define __macrodefs_builtin___builtin_csinhl 1
+#               define __macrodefs_builtin___builtin_ctan 1
+#               define __macrodefs_builtin___builtin_ctanf 1
+#               define __macrodefs_builtin___builtin_ctanl 1
+#               define __macrodefs_builtin___builtin_ctanh 1
+#               define __macrodefs_builtin___builtin_ctanhf 1
+#               define __macrodefs_builtin___builtin_ctanhl 1
+#               define __macrodefs_builtin___builtin_cpow 1
+#               define __macrodefs_builtin___builtin_cpowf 1
+#               define __macrodefs_builtin___builtin_cpowl 1
+#               define __macrodefs_builtin___builtin_cproj 1
+#               define __macrodefs_builtin___builtin_cprojf 1
+#               define __macrodefs_builtin___builtin_cprojl 1
+#               define __macrodefs_builtin___builtin_copysign 1
+#               define __macrodefs_builtin___builtin_copysignf 1
+#               define __macrodefs_builtin___builtin_copysignl 1
+#               define __macrodefs_builtin___builtin_erfc 1
+#               define __macrodefs_builtin___builtin_erfcf 1
+#               define __macrodefs_builtin___builtin_erfcl 1
+#               define __macrodefs_builtin___builtin_erf 1
+#               define __macrodefs_builtin___builtin_erff 1
+#               define __macrodefs_builtin___builtin_erfl 1
+#               define __macrodefs_builtin___builtin_exp2 1
+#               define __macrodefs_builtin___builtin_exp2f 1
+#               define __macrodefs_builtin___builtin_exp2l 1
+#               define __macrodefs_builtin___builtin_expm1 1
+#               define __macrodefs_builtin___builtin_expm1f 1
+#               define __macrodefs_builtin___builtin_expm1l 1
+#               define __macrodefs_builtin___builtin_fdim 1
+#               define __macrodefs_builtin___builtin_fdimf 1
+#               define __macrodefs_builtin___builtin_fdiml 1
+#               define __macrodefs_builtin___builtin_fma 1
+#               define __macrodefs_builtin___builtin_fmaf 1
+#               define __macrodefs_builtin___builtin_fmal 1
+#               define __macrodefs_builtin___builtin_fmax 1
+#               define __macrodefs_builtin___builtin_fmaxf 1
+#               define __macrodefs_builtin___builtin_fmaxl 1
+#               define __macrodefs_builtin___builtin_fmin 1
+#               define __macrodefs_builtin___builtin_fminf 1
+#               define __macrodefs_builtin___builtin_fminl 1
+#               define __macrodefs_builtin___builtin_hypot 1
+#               define __macrodefs_builtin___builtin_hypotf 1
+#               define __macrodefs_builtin___builtin_hypotl 1
+#               define __macrodefs_builtin___builtin_ilogb 1
+#               define __macrodefs_builtin___builtin_ilogbf 1
+#               define __macrodefs_builtin___builtin_ilogbl 1
+#               define __macrodefs_builtin___builtin_lgamma 1
+#               define __macrodefs_builtin___builtin_lgammaf 1
+#               define __macrodefs_builtin___builtin_lgammal 1
+#               define __macrodefs_builtin___builtin_llrint 1
+#               define __macrodefs_builtin___builtin_llrintf 1
+#               define __macrodefs_builtin___builtin_llrintl 1
+#               define __macrodefs_builtin___builtin_lrint 1
+#               define __macrodefs_builtin___builtin_lrintf 1
+#               define __macrodefs_builtin___builtin_lrintl 1
+#               define __macrodefs_builtin___builtin_rint 1
+#               define __macrodefs_builtin___builtin_rintf 1
+#               define __macrodefs_builtin___builtin_rintl 1
+#               define __macrodefs_builtin___builtin_llround 1
+#               define __macrodefs_builtin___builtin_llroundf 1
+#               define __macrodefs_builtin___builtin_llroundl 1
+#               define __macrodefs_builtin___builtin_lround 1
+#               define __macrodefs_builtin___builtin_lroundf 1
+#               define __macrodefs_builtin___builtin_lroundl 1
+#               define __macrodefs_builtin___builtin_round 1
+#               define __macrodefs_builtin___builtin_roundf 1
+#               define __macrodefs_builtin___builtin_roundl 1
+#               define __macrodefs_builtin___builtin_log1pf 1
+#               define __macrodefs_builtin___builtin_log1pff 1
+#               define __macrodefs_builtin___builtin_log1pfl 1
+#               define __macrodefs_builtin___builtin_log2 1
+#               define __macrodefs_builtin___builtin_log2f 1
+#               define __macrodefs_builtin___builtin_log2l 1
+#               define __macrodefs_builtin___builtin_logb 1
+#               define __macrodefs_builtin___builtin_logbf 1
+#               define __macrodefs_builtin___builtin_logbl 1
+#               define __macrodefs_builtin___builtin_nearbyint 1
+#               define __macrodefs_builtin___builtin_nearbyintf 1
+#               define __macrodefs_builtin___builtin_nearbyintl 1
+#               define __macrodefs_builtin___builtin_nextafter 1
+#               define __macrodefs_builtin___builtin_nextafterf 1
+#               define __macrodefs_builtin___builtin_nextafterl 1
+#               define __macrodefs_builtin___builtin_nexttoward 1
+#               define __macrodefs_builtin___builtin_nexttowardf 1
+#               define __macrodefs_builtin___builtin_nexttowardl 1
+#               define __macrodefs_builtin___builtin_remainder 1
+#               define __macrodefs_builtin___builtin_remainderf 1
+#               define __macrodefs_builtin___builtin_remainderl 1
+#               define __macrodefs_builtin___builtin_remquo 1
+#               define __macrodefs_builtin___builtin_remquof 1
+#               define __macrodefs_builtin___builtin_remquol 1
+#               define __macrodefs_builtin___builtin_scalbln 1
+#               define __macrodefs_builtin___builtin_scalblnf 1
+#               define __macrodefs_builtin___builtin_scalblnl 1
+#               define __macrodefs_builtin___builtin_scalbn 1
+#               define __macrodefs_builtin___builtin_scalbnf 1
+#               define __macrodefs_builtin___builtin_scalbnl 1
+#               define __macrodefs_builtin___builtin_tgamma 1
+#               define __macrodefs_builtin___builtin_tgammaf 1
+#               define __macrodefs_builtin___builtin_tgammal 1
+#               define __macrodefs_builtin___builtin_trunc 1
+#               define __macrodefs_builtin___builtin_truncf 1
+#               define __macrodefs_builtin___builtin_truncl 1
+#               define __macrodefs_builtin___builtin_vfscanf 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40000)
+#           define __macrodefs_builtin___builtin_signbit 1
+#           define __macrodefs_builtin___builtin_signbitf 1
+#           define __macrodefs_builtin___builtin_signbitl 1
+#           define __macrodefs_builtin___builtin_toascii 1
+#           define __macrodefs_builtin___builtin_isalnum 1
+#           define __macrodefs_builtin___builtin_isalpha 1
+#           define __macrodefs_builtin___builtin_iscntrl 1
+#           define __macrodefs_builtin___builtin_isdigit 1
+#           define __macrodefs_builtin___builtin_isgraph 1
+#           define __macrodefs_builtin___builtin_islower 1
+#           define __macrodefs_builtin___builtin_isprint 1
+#           define __macrodefs_builtin___builtin_ispunct 1
+#           define __macrodefs_builtin___builtin_isspace 1
+#           define __macrodefs_builtin___builtin_isupper 1
+#           define __macrodefs_buitlin___builtin_isxdigit 1
+#           define __macrodefs_builtin___builtin_tolower 1
+#           define __macrodefs_builtin___builtin_toupper 1
+#           define __macrodefs_builtin___builtin_ffs 1
+#           define __macrodefs_builtin___builtin_ffsl 1
+#           define __macrodefs_builtin___builtin_ffsll 1
+#           define __macrodefs_builtin___builtin_clz 1
+#           define __macrodefs_builtin___builtin_clzl 1
+#           define __macrodefs_builtin___builtin_clzll 1
+#           define __macrodefs_builtin___builtin_ctz 1
+#           define __macrodefs_builtin___builtin_ctzl 1
+#           define __macrodefs_builtin___builtin_ctzll 1
+#           define __macrodefs_builtin___builtin_popcount 1
+#           define __macrodefs_builtin___builtin_popcountl 1
+#           define __macrodefs_builtin___builtin_popcountll 1
+#           define __macrodefs_builtin___builtin_parity 1
+#           define __macrodefs_builtin___builtin_parityl 1
+#           define __macrodefs_builtin___builtin_parityll 1
+#           define __macrodefs_builtin___builtin_powi 1
+#           define __macrodefs_builtin___builtin_powif 1
+#           define __macrodefs_builtin___builtin_powil 1
+#           define __macrodefs_builtin___builtin_offsetof 1
+#           if STDC_PREREQ(199409L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_iswalnum 1
+#               define __macrodefs_builtin___builtin_iswalpha 1
+#               define __macrodefs_builtin___builtin_iswcntrl 1
+#               define __macrodefs_builtin___builtin_iswdigit 1
+#               define __macrodefs_builtin___builtin_iswgraph 1
+#               define __macrodefs_builtin___builtin_iswlower 1
+#               define __macrodefs_builtin___builtin_iswprint 1
+#               define __macrodefs_builtin___builtin_iswpunct 1
+#               define __macrodefs_builtin___builtin_iswspace 1
+#               define __macrodefs_builtin___builtin_iswupper 1
+#               define __macrodefs_builtin___builtin_iswxdigit 1
+#               define __macrodefs_builtin___builtin_towlower 1
+#               define __macrodefs_builtin___builtin_towupper 1
+#           endif
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_isblank 1
+#               define __macrodefs_builtin___builtin_iswblank 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40100)
+#           define __macrodefs_builtin___builtin_va_start 1
+#           define __macrodefs_builtin___builtin_va_arg 1
+#           define __macrodefs_builtin___builtin_va_end 1
+#           define __macrodefs_builtin___builtin_va_copy 1
+#           define __macrodefs_builtin___builtin_stpncpy 1
+#           define __macrodefs_builtin___builtin_strcasecmp 1
+#           define __macrodefs_builtin___builtin_strncasecmp 1
+#           define __macrodefs_builtin___builtin_strndup 1
+#           define __macrodefs_builtin___builtin_object_size 1
+#           define __macrodefs_builtin___builtin___memcpy_chk 1
+#           define __macrodefs_builtin___builtin___mempcpy_chk 1
+#           define __macrodefs_builtin___builtin___memmove_chk 1
+#           define __macrodefs_builtin___builtin___memset_chk 1
+#           define __macrodefs_builtin___builtin___strcpy_chk 1
+#           define __macrodefs_builtin___builtin___stpcpy_chk 1
+#           define __macrodefs_builtin___builtin___strncpy_chk 1
+#           define __macrodefs_builtin___builtin___strcat_chk 1
+#           define __macrodefs_builtin___builtin___strncat_chk 1
+#           define __macrodefs_builtin___builtin___printf_chk 1
+#           define __macrodefs_builtin___builtin___fprintf_chk 1
+#           define __macrodefs_builtin___builtin___sprintf_chk 1
+#           define __macrodefs_builtin___builtin___snprintf_chk 1
+#           define __macrodefs_builtin___builtin___vprintf_chk 1
+#           define __macrodefs_builtin___builtin___vfprintf_chk 1
+#           define __macrodefs_builtin___builtin___vsprintf_chk 1
+#           define __macrodefs_builtin___builtin___vsnprintf_chk 1
+#           define __macrodefs_builtin___sync_fetch_and_add 1
+#           define __macrodefs_builtin___sync_fetch_and_sub 1
+#           define __macrodefs_builtin___sync_fetch_and_or 1
+#           define __macrodefs_builtin___sync_fetch_and_and 1
+#           define __macrodefs_builtin___sync_fetch_and_xor 1
+#           define __macrodefs_builtin___sync_fetch_and_nand 1
+#           define __macrodefs_builtin___sync_add_and_fetch 1
+#           define __macrodefs_builtin___sync_sub_and_fetch 1
+#           define __macrodefs_builtin___sync_or_and_fetch 1
+#           define __macrodefs_builtin___sync_and_and_fetch 1
+#           define __macrodefs_builtin___sync_xor_and_fetch 1
+#           define __macrodefs_builtin___sync_nand_and_fetch 1
+#           define __macrodefs_builtin___sync_bool_compare_and_swap 1
+#           define __macrodefs_builtin___sync_val_compare_and_swap 1
+#           define __macrodefs_builtin___sync_synchronize 1
+#           define __macrodefs_builtin___sync_lock_test_and_set 1
+#           define __macrodefs_builtin___sync_lock_release 1
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_clog 1
+#               define __macrodefs_builtin___builtin_clogf 1
+#               define __macrodefs_builtin___builtin_clogl 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40200)
+#           define __macrodefs_builtin___builtin_trap 1
+#           define __macrodefs_builtin___builtin_nand32 1
+#           define __macrodefs_builtin___builtin_nand64 1
+#           define __macrodefs_builtin___builtin_nand128 1
+#           define __macrodefs_builtin___builtin_infd32 1
+#           define __macrodefs_builtin___builtin_infd64 1
+#           define __macrodefs_builtin___builtin_infd128 1
+#       endif
+#       if GCC_PREREQ(40300)
+#           define __macrodefs_builtin___builtin_gamma_r 1
+#           define __macrodefs_builtin___builtin_gammaf_r 1
+#           define __macrodefs_builtin___builtin_gammal_r 1
+#           define __macrodefs_builtin___builtin_isfinite 1
+#           define __macrodefs_builtin___builtin_isnormal 1
+#           define __macrodefs_builtin___builtin_lgamma_r 1
+#           define __macrodefs_builtin___builtin_lgammaf_r 1
+#           define __macrodefs_builtin___builtin_lgammal_r 1
+#           define __macrodefs_builtin___builtin___clear_cache 1
+#           define __macrodefs_builtin___builtin_bswap32 1
+#           define __macrodefs_builtin___builtin_bswap64 1
+#           define __macrodefs_builtin___builtin_va_arg_pack 1
+#           define __macrodefs_builtin___builtin_va_arg_pack_len 1
+#           if defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_builtin___builtin_fabsq 1
+#               define __macrodefs_builtin___builtin_copysignq 1
+#               define __macrodefs_builtin___builtin_infq 1
+#           endif
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_builtin___has_nothrow_assign 1
+#               define __macrodefs_builtin___has_nothrow_copy 1
+#               define __macrodefs_builtin___has_nothrow_constructor 1
+#               define __macrodefs_builtin___has_trivial_assign 1
+#               define __macrodefs_builtin___has_trivial_copy 1
+#               define __macrodefs_builtin___has_trivial_constructor 1
+#               define __macrodefs_builtin___has_trivial_destructor 1
+#               define __macrodefs_builtin___has_virtual_destructor 1
+#               define __macrodefs_builtin___is_abstract 1
+#               define __macrodefs_builtin___is_base_of 1
+#               define __macrodefs_builtin___is_class 1
+#               define __macrodefs_builtin___is_empty 1
+#               define __macrodefs_builtin___is_enum 1
+#               define __macrodefs_builtin___is_pod 1
+#               define __macrodefs_builtin___is_polymorphic 1
+#               define __macrodefs_builtin___is_union 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40400)
+#           define __macrodefs_builtin___builtin_fpclassify 1
+#           define __macrodefs_builtin___builtin_isinf_sign 1
+#           define __macrodefs_builtin___builtin_isinf 1
+#           define __macrodefs_builtin___builtin_isnan 1
+#           define __macrodefs_builtin_isinf 1
+#           define __macrodefs_builtin_isnan 1
+#       endif
+#       if GCC_PREREQ(40500)
+#           define __macrodefs_builtin___builtin_unreachable 1
+#           define __macrodefs_builtin___builtin_extract_return_address 1
+#           define __macrodefs_builtin___builtin_frob_return_address 1
+#           if defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_builtin___builtin_ms_va_start 1
+#               define __macrodefs_builtin___builtin_ms_va_end 1
+#               define __macrodefs_builtin___builtin_ms_va_copy 1
+#               define __macrodefs_builtin___builtin_huge_valq 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40600) && CPP_PREREQ(1L)
+#           define __macrodefs_builtin___is_literal_type 1
+#           define __macrodefs_builtin___is_standard_layout 1
+#           define __macrodefs_builtin___is_trivial 1
+#       endif
+#       if GCC_PREREQ(40700)
+#           define __macrodefs_builtin___builtin_assume_aligned 1
+#           define __macrodefs_builtin___builtin_complex 1
+#           define __macrodefs_builtin___builtin_clrsb 1
+#           define __macrodefs_builtin___builtin_clrsbl 1
+#           define __macrodefs_builtin___builtin_clrsbll 1
+#           define __macrodefs_builtin___builtin_shuffle 1
+#           define __macrodefs_builtin___atomic_load_n 1
+#           define __macrodefs_builtin___atomic_load 1
+#           define __macrodefs_builtin___atomic_store_n 1
+#           define __macrodefs_builtin___atomic_store 1
+#           define __macrodefs_builtin___atomic_exchange_n 1
+#           define __macrodefs_builtin___atomic_exchange 1
+#           define __macrodefs_builtin___atomic_compare_exchange_n 1
+#           define __macrodefs_builtin___atomic_compare_exchange 1
+#           define __macrodefs_builtin___atomic_add_fetch 1
+#           define __macrodefs_builtin___atomic_sub_fetch 1
+#           define __macrodefs_builtin___atomic_and_fetch 1
+#           define __macrodefs_builtin___atomic_or_fetch 1
+#           define __macrodefs_builtin___atomic_xor_fetch 1
+#           define __macrodefs_builtin___atomic_nand_fetch 1
+#           define __macrodefs_builtin___atomic_fetch_add 1
+#           define __macrodefs_builtin___atomic_fetch_sub 1
+#           define __macrodefs_builtin___atomic_fetch_and 1
+#           define __macrodefs_builtin___atomic_fetch_or 1
+#           define __macrodefs_builtin___atomic_fetch_xor 1
+#           define __macrodefs_builtin___atomic_fetch_nand 1
+#           define __macrodefs_builtin___atomic_test_and_set 1
+#           define __macrodefs_builtin___atomic_clear 1
+#           define __macrodefs_builtin___atomic_thread_fence 1
+#           define __macrodefs_builtin___atomic_signal_fence 1
+#           define __macrodefs_builtin___atomic_always_lock_free 1
+#           define __macrodefs_builtin___atomic_is_lock_free 1
+#           if defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_builtin___builtin_ia32_pause 1
+#           endif
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_builtin___underlying_type 1
+#           endif
+#       endif
+#       if GCC_PREREQ(40800)
+#           define __macrodefs_builtin___builtin_LINE 1
+#           define __macrodefs_builtin___builtin_FUNCTION 1
+#           define __macrodefs_builtin___builtin_FILE 1
+#           define __macrodefs_builtin___builtin_bswap16 1
+#           undef __macrodefs_builtin___builtin_extract_return_address
+#           define __macrodefs_builtin___builtin_extract_return_addr 1
+#       endif
+#       if GCC_PREREQ(50000)
+#           if !CPP_PREREQ(1)
+#               define __macrodefs_builtin___builtin_call_with_static_chain 1
+#           endif
+#           define __macrodefs_builtin___builtin___bnd_set_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_narrow_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_copy_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_init_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_null_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_store_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_chk_ptr_lbounds 1
+#           define __macrodefs_builtin___builtin___bnd_chk_ptr_ubounds 1
+#           define __macrodefs_builtin___builtin___bnd_chk_ptr_bounds 1
+#           define __macrodefs_builtin___builtin___bnd_get_ptr_lbound 1
+#           define __macrodefs_builtin___builtin___bnd_get_ptr_ubound 1
+#           define __macrodefs_builtin___builtin_add_overflow 1
+#           define __macrodefs_builtin___builtin_sadd_overflow 1
+#           define __macrodefs_builtin___builtin_saddl_overflow 1
+#           define __macrodefs_builtin___builtin_saddll_overflow 1
+#           define __macrodefs_builtin___builtin_uadd_overflow 1
+#           define __macrodefs_builtin___builtin_uaddl_overflow 1
+#           define __macrodefs_builtin___builtin_uaddll_overflow 1
+#           define __macrodefs_builtin___builtin_sub_overflow 1
+#           define __macrodefs_builtin___builtin_ssub_overflow 1
+#           define __macrodefs_builtin___builtin_ssubl_overflow 1
+#           define __macrodefs_builtin___builtin_ssubll_overflow 1
+#           define __macrodefs_builtin___builtin_usub_overflow 1
+#           define __macrodefs_builtin___builtin_usubl_overflow 1
+#           define __macrodefs_builtin___builtin_usubll_overflow 1
+#           define __macrodefs_builtin___builtin_mul_overflow 1
+#           define __macrodefs_builtin___builtin_smul_overflow 1
+#           define __macrodefs_builtin___builtin_smull_overflow 1
+#           define __macrodefs_builtin___builtin_smulll_overflow 1
+#           define __macrodefs_builtin___builtin_umul_overflow 1
+#           define __macrodefs_builtin___builtin_umull_overflow 1
+#           define __macrodefs_builtin___builtin_umulll_overflow 1
+#           if defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_builtin___builtin_cpu_init 1
+#               define __macrodefs_builtin___builtin_cpu_is 1
+#               define __macrodefs_builtin___builtin_cpu_supports 1
+#           endif
+#           if defined(__powerpc__) || defined(__powerpc64__)
+#               define __macrodefs_builtin___builtin_recipdiv 1
+#               define __macrodefs_builtin___builtin_recipdivf 1
+#               define __macrodefs_builtin___builtin_rsqrt 1
+#               define __macrodefs_builtin___builtin_rsqrtf 1
+#               define __macrodefs_builtin___builtin_ppc_get_timebase 1
+#               define __macrodefs_builtin___builtin_ppc_mftb 1
+#               define __macrodefs_builtin___builtin_unpack_longdouble 1
+#               define __macrodefs_builtin___builtin_pack_longdouble 1
+#           endif
+#       endif
+#       if GCC_PREREQ(60000)
+#           define __macrodefs_builtin___builtin_alloca_with_align 1
+#           if STDC_PREREQ(199901L) || !defined(__STRICT_ANSI__)
+#               define __macrodefs_builtin___builtin_clog10 1
+#               define __macrodefs_builtin___builtin_clog10f 1
+#               define __macrodefs_builtin___builtin_clog10l 1
+#           endif
+#           if defined(__powerpc__) || defined(__powerpc64__)
+#               define __macrodefs_builtin___builtin_cpu_init 1
+#               define __macrodefs_builtin___builtin_cpu_is 1
+#               define __macrodefs_builtin___builtin_cpu_supports 1
+#           endif
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_builtin___is_same 1
+#           endif
+#       endif
+#       if GCC_PREREQ(70000)
+#           define __macrodefs_builtin___builtin_add_overflow_p 1
+#           define __macrodefs_builtin___builtin_sub_overflow_p 1
+#           define __macrodefs_builtin___builtin_mul_overflow_p 1
+#           define __macrodefs_builtin___builtin_fabsf32 1
+#           define __macrodefs_builtin___builtin_fabsf32x 1
+#           define __macrodefs_builtin___builtin_fabsf64 1
+#           define __macrodefs_builtin___builtin_fabsf64x 1
+#           define __macrodefs_builtin___builtin_fabsf128 1
+#           define __macrodefs_builtin___builtin_copysignf32 1
+#           define __macrodefs_builtin___builtin_copysignf32x 1
+#           define __macrodefs_builtin___builtin_copysignf64 1
+#           define __macrodefs_builtin___builtin_copysignf64x 1
+#           define __macrodefs_builtin___builtin_copysignf128 1
+#           define __macrodefs_builtin___builtin_huge_valf32 1
+#           define __macrodefs_builtin___builtin_huge_valf32x 1
+#           define __macrodefs_builtin___builtin_huge_valf64 1
+#           define __macrodefs_builtin___builtin_huge_valf64x 1
+#           define __macrodefs_builtin___builtin_huge_valf128 1
+#           define __macrodefs_builtin___builtin_inff32 1
+#           define __macrodefs_builtin___builtin_inff32x 1
+#           define __macrodefs_builtin___builtin_inff64 1
+#           define __macrodefs_builtin___builtin_inff64x 1
+#           define __macrodefs_builtin___builtin_inff128 1
+#           define __macrodefs_builtin___builtin_nanf32 1
+#           define __macrodefs_builtin___builtin_nanf32x 1
+#           define __macrodefs_builtin___builtin_nanf64 1
+#           define __macrodefs_builtin___builtin_nanf64x 1
+#           define __macrodefs_builtin___builtin_nanf128 1
+#           define __macrodefs_builtin___builtin_nansf32 1
+#           define __macrodefs_builtin___builtin_nansf32x 1
+#           define __macrodefs_builtin___builtin_nansf64 1
+#           define __macrodefs_builtin___builtin_nansf64x 1
+#           define __macrodefs_builtin___builtin_nansf128 1
+#           ifdef __ALTIVEC__
+#               define __macrodefs_builtin___builtin_fabsq 1
+#               define __macrodefs_builtin___builtin_copysignq 1
+#               define __macrodefs_builtin___builtin_huge_valq 1
+#               define __macrodefs_builtin___builtin_infq 1
+#           endif
+#           if defined(__ALTIVEC__) || defined(__i386__) || defined(__x86_64__)
+#               define __macrodefs_builtin___builtin_nanq 1
+#               define __macrodefs_builtin___builtin_nansq 1
+#           endif
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_builtin___builtin_launder 1
+#           endif
+#       endif
+#       if GCC_PREREQ(80000)
+#           define __macrodefs_builtin___builtin_alloca_with_align_and_max 1
+#           define __macrodefs_builtin___builtin_extend_pointer 1
+#           if STDC_PREREQ(1L)
+#               define __macrodefs_builtin___builtin_tgmath 1
+#           else
+#               define __macrodefs_builtin___integer_pack 1
+#           endif
+#       endif
+#       if GCC_PREREQ(90000)
+#           define __macrodefs_builtin___builtin_expect_with_probability 1
+#           define __macrodefs_builtin___builtin_has_attribute 1
+#           define __macrodefs_builtin___builtin_speculation_safe_value 1
+#           define __macrodefs_builtin___builtin_convertvector 1
+#           define __macrodefs_builtin___builtin_goacc_parlevel_id 1
+#           define __macrodefs_builtin___builtin_goacc_parlevel_size 1
+#           define __macrodefs_builtin___builtin_setjmp 1
+#           define __macrodefs_builtin___builtin_longjmp 1
+#           if CPP_PREREQ(1L)
+#               define __macrodefs_builtin___builtin_is_constant_evaluated 1
+#           endif
+#       endif
+#   elif MSVC_PREREQ(1)
+#       if MSVC_PREREQ(1915) && CPP_PREREQ(201703L)
+#           define __macrodefs_builtin___builtin_launder 1
+#       endif
+#       if MSVC_PREREQ(1926)
+#           define __macrodefs_builtin___builtin_FILE 1
+#           define __macrodefs_builtin___builtin_FUNCTION 1
+#           define __macrodefs_builtin___builtin_LINE 1
+#           define __macrodefs_builtin___builtin_COLUMN 1
+#       endif
+#   endif
+#   define __has_builtin(x) __macrodefs_builtin_ ##x
 #endif
-#ifndef __has_c_attribute /* C18- doesn't have C attributes */
+#if !defined(__has_c_attribute) \
+    || CPP_PREREQ(1L) /* C18- and C++ don't have C attributes */
 #   define __has_c_attribute(x) 0L
 #endif
-#ifndef __has_cpp_attribute /* C++17- doesn't have __has_cpp_attribute */
-#   if STDC_PREREQ(1L)
-#       define __has_cpp_attribute(x) 0L
-#   elif CPP_PREREQ(201103L)
+#if !defined(__has_cpp_attribute) \
+    || STDC_PREREQ(1L) /* C++17- doesn't have __has_cpp_attribute */
+#   if CPP_PREREQ(201103L)
 #       define __macrodefs_cpp_attribute_carries_dependency             200809L
 #       define __macrodefs_cpp_attribute_noreturn                       200809L
 #       if CPP_PREREQ(201403L)
@@ -1273,6 +3039,8 @@
 #           endif
 #       endif
 #       define __has_cpp_attribute(x) __macrodefs_cpp_attribute ##x
+#   else
+#       define __has_cpp_attribute(x) 0L
 #   endif
 #endif
 #ifndef __has_declspec_attribute /* only clang has __has_declspec_attribute */
@@ -1293,9 +3061,9 @@
 #       define __macrodefs_declspec_attribute_restrict          1
 #       define __macrodefs_declspec_attribute_safebuffers       1
 #       define __macrodefs_declspec_attribute_thread            1
-#       define __macrodefs_declspec_attribute_uuid              1
 #       if MSVC_PREREQ(1100)
 #           define __macrodefs_declspec_attribute_selectany     1
+#           define __macrodefs_declspec_attribute_uuid          1
 #       endif
 #       if MSVC_PREREQ(1300)
 #           define __macrodefs_declspec_attribute_align         1
@@ -1329,10 +3097,221 @@
 #   define __has_declspec_attribute(x) __macrodefs_declspec_attribute_ ##x
 #endif
 #ifndef __has_extension
-#   ifdef __GNUC__
+#   ifdef __TINYC__
+#       define __macrodefs_extension_cxx_binary_literals 1
+#       define __macrodefs_extension___cxx_binary_literals__ 1
+#   elif defined(__GNUC__)
+#       define __macrodefs_extension_gnu_asm 1
+#       define __macrodefs_extension___gnu_asm__ 1
+#       if GCC_PREREQ(40300)
+#           define __macrodefs_extension_cxx_binary_literals 1
+#           define __macrodefs_extension___cxx_binary_literals__ 1
+#           define __macrodefs_extension_cxx_decltype 1
+#           define __macrodefs_extension___cxx_decltype__ 1
+#           define __macrodefs_extension_cxx_rvalue_references 1
+#           define __macrodefs_extension___cxx_rvalue_references__ 1
+#           define __macrodefs_extension_cxx_static_assert 1
+#           define __macrodefs_extension___cxx_static_assert__ 1
+#       endif
+#       if GCC_PREREQ(40400)
+#           define __macrodefs_extension_cxx_auto_type 1
+#           define __macrodefs_extension___cxx_auto_type__ 1
+#           define __macrodefs_extension_cxx_defaulted_functions 1
+#           define __macrodefs_extension___cxx_defaulted_functions__ 1
+#           define __macrodefs_extension_cxx_deleted_functions 1
+#           define __macrodefs_extension___cxx_deleted_functions__ 1
+#           define __macrodefs_extension_cxx_generalized_initializers 1
+#           define __macrodefs_extension___cxx_generalized_initializers__ 1
+#           define __macrodefs_extension_cxx_inline_namespaces 1
+#           define __macrodefs_extension___cxx_inline_namespaces__ 1
+#           define __macrodefs_extension_cxx_strong_enums 1
+#           define __macrodefs_extension___cxx_strong_enums__ 1
+#           define __macrodefs_extension_cxx_trailing_return 1
+#           define __macrodefs_extension___cxx_trailing_return__ 1
+#           define __macrodefs_extension_cxx_unicode_literals 1
+#           define __macrodefs_extension___cxx_unicode_literals__ 1
+#           define __macrodefs_extension_cxx_variadic_templates 1
+#           define __macrodefs_extension___cxx_variadic_templates__ 1
+#       endif
 #       if GCC_PREREQ(40500)
 #           define __macrodefs_extension_attribute_deprecated_with_message 1
+#           define __macrodefs_extension___attribute_deprecated_with_message__ 1
+#           define __macrodefs_extension_cxx_default_function_template_args 1
+#          define __macrodefs_extension___cxx_default_function_template_args__ 1
+#           define __macrodefs_extension_cxx_explicit_conversions 1
+#           define __macrodefs_extension___cxx_explicit_conversions__ 1
+#           define __macrodefs_extension_cxx_lambdas 1
+#           define __macrodefs_extension___cxx_lambdas__ 1
+#           define __macrodefs_extension_cxx_raw_string_literals 1
+#           define __macrodefs_extension___cxx_raw_string_literals__ 1
 #       endif
+#       if GCC_PREREQ(40600)
+#           define __macrodefs_extension_cxx_constexpr 1
+#           define __macrodefs_extension___cxx_constexpr__ 1
+#           define __macrodefs_extension_cxx_implicit_moves 1
+#           define __macrodefs_extension___cxx_implicit_moves__ 1
+#           define __macrodefs_extension_cxx_noexcept 1
+#           define __macrodefs_extension___cxx_noexcept__ 1
+#           define __macrodefs_extension_cxx_range_for 1
+#           define __macrodefs_extension___cxx_range_for__ 1
+#           define __macrodefs_extension_cxx_unrestricted_unions 1
+#           define __macrodefs_extension_cxx___unrestricted_unions__ 1
+#       endif
+#       if GCC_PREREQ(40700)
+#           define __macrodefs_extension_cxx_aggregate_nsdmi 1
+#           define __macrodefs_extension_cxx___aggregate_nsdmi__ 1
+#           define __macrodefs_extension_cxx_delegating_constructors 1
+#           define __macrodefs_extension___cxx_delegating_constructors__ 1
+#           define __macrodefs_extension_cxx_nonstatic_member_init 1
+#           define __macrodefs_extension___cxx_nonstatic_member_init__ 1
+#           define __macrodefs_extension_cxx_override_control 1
+#           define __macrodefs_extension___cxx_override_control__ 1
+#           define __macrodefs_extension_cxx_user_literals 1
+#           define __macrodefs_extension___cxx_user_literals__ 1
+#       endif
+#       if GCC_PREREQ(40800)
+#           define __macrodefs_extension_cxx_decltype_auto 1
+#           define __macrodefs_extension___cxx_decltype_auto__ 1
+#           define __macrodefs_extension_cxx_inheriting_constructors 1
+#           define __macrodefs_extension___cxx_inheriting_constructors__ 1
+#           define __macrodefs_extension_cxx_thread_local 1
+#           define __macrodefs_extension___cxx_thread_local__ 1
+#       endif
+#       if GCC_PREREQ(40900)
+#           define __macrodefs_extension_cxx_contextual_conversions 1
+#           define __macrodefs_extension___cxx_contextual_conversions__ 1
+#           define __macrodefs_extension_cxx_generic_lambdas 1
+#           define __macrodefs_extension___cxx_generic_lambdas__ 1
+#           define __macrodefs_extension_cxx_init_captures 1
+#           define __macrodefs_extension___cxx_init_captures__ 1
+#           define __macrodefs_extension_cxx_return_type_deduction 1
+#           define __macrodefs_extension___cxx_return_type_deduction__ 1
+#           ifndef __cpp_digit_separators
+#               define __cpp_digit_separators 1
+#           endif
+#       endif
+#       if GCC_PREREQ(50000)
+#           define __macrodefs_extension_cxx_relaxed_constexpr 1
+#           define __macrodefs_extension___cxx_relaxed_constexpr__ 1
+#           define __macrodefs_extension_cxx_variable_templates 1
+#           define __macrodefs_extension___cxx_variable_templates__ 1
+#       endif
+#       if GCC_PREREQ(60000)
+#           define __macrodefs_extension_enumerator_attributes 1
+#           define __macrodefs_extension___enumerator_attributes__ 1
+#       endif
+#   elif MSVC_PREREQ(1)
+#       if MSVC_PREREQ(1600)
+#           define __macrodefs_extension_cxx_auto_type 1
+#           define __macrodefs_extension___cxx_auto_type__ 1
+#           define __macrodefs_extension_cxx_decltype 1
+#           define __macrodefs_extension___cxx_decltype__ 1
+#           define __macrodefs_extension_cxx_lambdas 1
+#           define __macrodefs_extension___cxx_lambdas__ 1
+#           define __macrodefs_extension_cxx_nullptr 1
+#           define __macrodefs_extension___cxx_nullptr__ 1
+#           define __macrodefs_extension_cxx_rvalue_references 1
+#           define __macrodefs_extension___cxx_rvalue_references__ 1
+#           define __macrodefs_extension_cxx_static_assert 1
+#           define __macrodefs_extension___cxx_static_assert__ 1
+#           define __macrodefs_extension_cxx_trailing_return 1
+#           define __macrodefs_extension___cxx_trailing_return__ 1
+#       endif
+#       if MSVC_PREREQ(1700)
+#           define __macrodefs_extension_cxx_override_control 1
+#           define __macrodefs_extension___cxx_override_control__ 1
+#           define __macrodefs_extension_cxx_range_for 1
+#           define __macrodefs_extension___cxx_range_for__ 1
+#           define __macrodefs_extension_cxx_strong_enums 1
+#           define __macrodefs_extension___cxx_strong_enums__ 1
+#       endif
+#       if MSVC_PREREQ(1800)
+#           define __macrodefs_extension_cxx_aggregate_nsdmi 1
+#           define __macrodefs_extension_cxx___aggregate_nsdmi__ 1
+#           define __macrodefs_extension_cxx_contextual_conversions 1
+#           define __macrodefs_extension___cxx_contextual_conversions__ 1
+#           define __macrodefs_extension_cxx_default_function_template_args 1
+#          define __macrodefs_extension___cxx_default_function_template_args__ 1
+#           define __macrodefs_extension_cxx_delegating_constructors 1
+#           define __macrodefs_extension___cxx_delegating_constructors__ 1
+#           define __macrodefs_extension_cxx_deleted_functions 1
+#           define __macrodefs_extension___cxx_deleted_functions__ 1
+#           define __macrodefs_extension_cxx_explicit_conversions 1
+#           define __macrodefs_extension___cxx_explicit_conversions__ 1
+#           define __macrodefs_extension_cxx_generalized_initializers 1
+#           define __macrodefs_extension___cxx_generalized_initializers__ 1
+#           define __macrodefs_extension_cxx_nonstatic_member_init 1
+#           define __macrodefs_extension___cxx_nonstatic_member_init__ 1
+#           define __macrodefs_extension_cxx_raw_string_literals 1
+#           define __macrodefs_extension___cxx_raw_string_literals__ 1
+#           define __macrodefs_extension_cxx_variadic_templates 1
+#           define __macrodefs_extension___cxx_variadic_templates__ 1
+#       endif
+#       if MSVC_PREREQ(1900)
+#           define __macrodefs_extension_cxx_constexpr 1
+#           define __macrodefs_extension___cxx_constexpr__ 1
+#           define __macrodefs_extension_cxx_binary_literals 1
+#           define __macrodefs_extension___cxx_binary_literals__ 1
+#           define __macrodefs_extension_cxx_decltype_auto 1
+#           define __macrodefs_extension___cxx_decltype_auto__ 1
+#           define __macrodefs_extension_cxx_defaulted_functions 1
+#           define __macrodefs_extension___cxx_defaulted_functions__ 1
+#           define __macrodefs_extension_cxx_generic_lambdas 1
+#           define __macrodefs_extension___cxx_generic_lambdas__ 1
+#           define __macrodefs_extension_cxx_implicit_moves 1
+#           define __macrodefs_extension___cxx_implicit_moves__ 1
+#           define __macrodefs_extension_cxx_inheriting_constructors 1
+#           define __macrodefs_extension___cxx_inheriting_constructors__ 1
+#           define __macrodefs_extension_cxx_init_captures 1
+#           define __macrodefs_extension___cxx_init_captures__ 1
+#           define __macrodefs_extension_cxx_inline_namespaces 1
+#           define __macrodefs_extension___cxx_inline_namespaces__ 1
+#           define __macrodefs_extension_cxx_noexcept 1
+#           define __macrodefs_extension___cxx_noexcept__ 1
+#           define __macrodefs_extension_cxx_return_type_deduction 1
+#           define __macrodefs_extension___cxx_return_type_deduction__ 1
+#           define __macrodefs_extension_cxx_thread_local 1
+#           define __macrodefs_extension___cxx_thread_local__ 1
+#           define __macrodefs_extension_cxx_unicode_literals 1
+#           define __macrodefs_extension___cxx_unicode_literals__ 1
+#           define __macrodefs_extension_cxx_unrestricted_unions 1
+#           define __macrodefs_extension_cxx___unrestricted_unions__ 1
+#           define __macrodefs_extension_cxx_user_literals 1
+#           define __macrodefs_extension___cxx_user_literals__ 1
+#           if _MSC_FULL_VER >= 190023918
+#               define __macrodefs_extension_cxx_variable_templates 1
+#               define __macrodefs_extension___cxx_variable_templates__ 1
+#           endif
+#           ifndef __cpp_digit_separators
+#               define __cpp_digit_separators 1
+#           endif
+#       endif
+#       if MSVC_PREREQ(1910)
+#           define __macrodefs_extension_cxx_relaxed_constexpr 1
+#           define __macrodefs_extension___cxx_relaxed_constexpr__ 1
+#       endif
+#       if MSVC_PREREQ(1927)
+#           define __macrodefs_extension_c_generic_selections 1
+#           define __macrodefs_extension___c_generic_selections__ 1
+#       endif
+#       if MSVC_PREREQ(1928)
+#           define __macrodefs_extension_c_static_assert 1
+#           define __macrodefs_extension___c_static_assert__ 1
+#           define __macrodefs_extension_modules 1
+#           define __macrodefs_extension___modules__ 1
+#       endif
+#   endif
+#   if (defined(_CPPUNWIND) && (_CPPUNWIND > 0)) || defined(__EXCEPTIONS)
+#       define __macrodefs_extension_cxx_exceptions 1
+#       define __macrodefs_extension___cxx_exceptions__ 1
+#   endif
+#   if (defined(_CPPRTTI) && (_CPPRTTI > 0)) || defined(__GXX_RTTI)
+#       define __macrodefs_extension_cxx_rtti 1
+#       define __macrodefs_extension___cxx_rtti__ 1
+#   endif
+#   ifndef __STDC_NO_ATOMICS__
+#       define __macrodefs_extension_c_atomic 1
+#       define __macrodefs_extension___c_atomic__ 1
 #   endif
 #   define __has_extension(x) ((__macrodefs_extension_ ##x) || __has_feature(x))
 #endif
@@ -1342,41 +3321,148 @@
 #ifndef __has_include
 #   define __has_include(x) 0
 #endif
-
-/* == STANDARD MACROS TO DENOTE MISSING FEATURES ============================ */
-
-/**
- * @def __STDC_NO_VLA__
- * @brief A standard macro that declares a C implementation which does not
- *        support variable-length arrays.
- */
-/**
- * @def __STDC_NO_THREADS__
- * @brief A standard macro that declares a C implementation which does not
- *        support the standard thread support library via @c <threads.h>.
- */
-/**
- * @def __STDC_NO_ATOMICS__
- * @brief A standard macro that declares a C implementation which does not
- *        support standard atomics via the @c _Atomic keyword or
- *        @c <stdatomic.h>.
- */
-#if (STDC_PREREQ(1L) && (!STDC_PREREQ(199901L) || defined(SDCC))) && \
-    !defined(__STDC_NO_VLA__)
-#   define __STDC_NO_VLA__ 1
+#ifndef __has_include_next
+#   define __has_include_next(x) 0
 #endif
-#if ((STDC_PREREQ(1L) && !STDC_PREREQ(201112L)) || \
-    (defined(__has_include) && !__has_include(<threads.h>))) && \
-    !defined(__STDC_NO_THREADS__)
-#   define __STDC_NO_THREADS__ 1
+#ifndef __has_warning
+#   define __has_warning(x) 0
 #endif
-#if ((STDC_PREREQ(1L) && !STDC_PREREQ(201112L)) || \
-    (defined(__has_include) && !__has_include(<stdatomic.h>))) && \
-    !defined(__STDC_NO_ATOMICS__)
-#   define __STDC_NO_ATOMICS__ 1
+#ifndef __is_identifier
+#   define __is_identifier(x) 0
+#endif
+
+/* == C++ FEATURE DETECTION MACROS ========================================== */
+
+#if CPP_PREREQ(1L) && !(GCC_PREREQ(50000) || CLANG_PREREQ(30400) \
+    || MSVC_PREREQ(1915)) && !defined(_FEATURE_TEST_MACROS_DEFINED)
+#   define _FEATURE_TEST_MACROS_DEFINED 1
+#   if __has_extension(cxx_aggregate_nsdmi)
+#       define __cpp_aggregate_nsdmi 201304L
+#   endif
+#   if GCC_PREREQ(40700) || CLANG_PREREQ(30000) || MSVC_PREREQ(1800)
+#       define __cpp_alias_templates 200704L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1912)
+#       define __cpp_aligned_new 201606L
+#   endif
+#   if GCC_PREREQ(40800) || CLANG_PREREQ(30300) || MSVC_PREREQ(1900)
+#       define __cpp_attributes 200809L
+#   endif
+#   if __has_extension(cxx_binary_literals)
+#       define __cpp_binary_literals 201304L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(30900) || MSVC_PREREQ(1911)
+#       define __cpp_capture_star_this 201603L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(50000) || MSVC_PREREQ(1911)
+#       define __cpp_constexpr 201603L
+#   elif __has_extension(cxx_relaxed_constexpr)
+#       define __cpp_constexpr 201304L
+#   elif __has_extension(cxx_constexpr)
+#       define __cpp_constexpr 200704L
+#   endif
+#   if __has_extension(cxx_decltype)
+#       define __cpp_decltype 200707L
+#   endif
+#   if __has_extension(cxx_decltype_auto)
+#       define __cpp_decltype_auto 201304L
+#   endif
+#   if __has_extension(cxx_delegating_constructors)
+#       define __cpp_delegating_constructors 200604L
+#   endif
+#   if GCC_PREREQ(60000) || CLANG_PREREQ(30600) || MSVC_PREREQ(1900)
+#       define __cpp_enumerator_attributes 201411L
+#       define __cpp_namespace_attributes 201411L
+#   endif
+#   if __has_extension(cxx_exceptions)
+#       define __cpp_exceptions 199711L
+#   endif
+#   if GCC_PREREQ(60000) || CLANG_PREREQ(30600) || MSVC_PREREQ(1912)
+#       define __cpp_fold_expressions 201603L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1914)
+#       define __cpp_guaranteed_copy_elision 201606L
+#   endif
+#   if GCC_PREREQ(30000) || CLANG_PREREQ(1) || MSVC_PREREQ(1911)
+#       define __cpp_hex_float 201603L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(30900) || MSVC_PREREQ(1911)
+#       define __cpp_if_constexpr 201606L
+#   endif
+#   if __has_extension(cxx_inheriting_constructors)
+#       define __cpp_inheriting_constructors 200802L
+#   endif
+#   if __has_extension(cxx_generalized_initializers)
+#       define __cpp_initializer_lists 200806L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(30900) || MSVC_PREREQ(1912)
+#       define __cpp_inline_variables 201606L
+#   endif
+#   if __has_extension(cxx_lambdas)
+#       define __cpp_lambdas 200907L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1912)
+#       define __cpp_noexcept_function_type 201510L
+#   endif
+#   if GCC_PREREQ(60000) || CLANG_PREREQ(30600) || MSVC_PREREQ(1912)
+#       define __cpp_nontype_template_args 201411L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1914)
+#       define __cpp_nontype_template_parameter_auto 201606L
+#   endif
+#   if __has_extension(cxx_nonstatic_member_init)
+#       define __cpp_nsdmi 200809L
+#   endif
+#   if GCC_PREREQ(60000) || CLANG_PREREQ(30900) || MSVC_PREREQ(1910)
+#       define __cpp_range_based_for 201603L
+#   elif __has_extension(cxx_range_for)
+#       define __cpp_range_based_for 200907L
+#   endif
+#   if __has_extension(cxx_raw_string_literals)
+#       define __cpp_raw_strings 200710L
+#   endif
+#   if __has_extension(cxx_return_type_deduction)
+#       define __cpp_return_type_deduction 201304L
+#   endif
+#   if __has_extension(cxx_rtti)
+#       define __cpp_rtti 199711L
+#   endif
+#   if __has_extension(cxx_rvalue_references)
+#       define __cpp_rvalue_references 200610L
+#   endif
+#   if GCC_PREREQ(50000) || CLANG_PREREQ(30400) || MSVC_PREREQ(1900)
+#       define __cpp_sized_deallocation 201309L
+#   endif
+#   if GCC_PREREQ(60000) || CLANG_PREREQ(20500) || MSVC_PREREQ(1910)
+#       define __cpp_static_assert 201411L
+#   elif __has_extension(cxx_static_assert)
+#       define __cpp_static_assert 200410L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1911)
+#       define __cpp_structured_bindings 201606L
+#   endif
+#   if GCC_PREREQ(40400) || CLANG_PREREQ(20900) || MSVC_PREREQ(1900)
+#       define __cpp_unicode_characters 200704L
+#   endif
+#   if __has_extension(cxx_unicode_literals)
+#       define __cpp_unicode_literals 200710L
+#   endif
+#   if __has_extension(cxx_variable_templates)
+#       define __cpp_variable_templates 201304L
+#   endif
+#   if __has_extension(cxx_variadic_templates)
+#       define __cpp_variadic_templates 200704L
+#   endif
+#   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1914)
+#       define __cpp_variadic_using 201611L
+#   endif
+#elif !defined(_FEATURE_TEST_MACROS_DEFINED)
+#   define _FEATURE_TEST_MACROS_DEFINED 1
 #endif
 
 /* == DYNAMIC LIBRARY IMPORT/EXPORT ANNOTATIONS ============================= */
+
+#ifndef EXPORT
 
 /**
  * @def EXPORT
@@ -1391,19 +3477,19 @@
  * @brief Annotates a function to not be exported when building a dynamic
  *        library.
  */
-#if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-    defined(__CYGWIN__)) && (__has_declspec_attribute(dllexport) || \
-    __has_declspec_attribute(dllimport))
-#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-        defined(__CYGWIN__)) && __has_declspec_attribute(dllexport)
+#if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) \
+    || defined(__CYGWIN__)) && (__has_declspec_attribute(dllexport) \
+    || __has_declspec_attribute(dllimport))
+#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) \
+        || defined(__CYGWIN__)) && __has_declspec_attribute(dllexport)
 #       define EXPORT __declspec(dllexport)
 #   endif
-#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) || \
-        defined(__CYGWIN__)) && __has_declspec_attribute(dllimport)
+#   if (defined(_WIN32) || defined(__WINRT__) || defined(__OS2__) \
+        || defined(__CYGWIN__)) && __has_declspec_attribute(dllimport)
 #       define IMPORT __declspec(dllimport)
 #   endif
 #   define LOCAL
-#elif GCC_PREREQ(40000) || __has_attribute(visibility)
+#elif __has_attribute(visibility)
 #   define EXPORT __attribute__((__visibility__("default")))
 #   define IMPORT
 #   define LOCAL  __attribute__((__visibility__("hidden")))
@@ -1421,7 +3507,11 @@
 #   define LOCAL
 #endif
 
+#endif
+
 /* == CALLING CONVENTION SPECIFIERS ========================================= */
+
+#ifndef CDECL
 
 #if defined(__i386__)
 #   if defined(_MSC_VER) || defined(__DMC__) || defined(__BORLANDC__)
@@ -1433,13 +3523,13 @@
 #       endif
 #   else
 #       if __has_attribute(cdecl)
-#           define CDECL __attribute__((cdecl))
+#           define CDECL __attribute__((__cdecl__))
 #       endif
 #       if __has_attribute(stdcall)
-#           define STDCALL __attribute__((stdcall))
+#           define STDCALL __attribute__((__stdcall__))
 #       endif
 #       if __has_attribute(fastcall)
-#           define FASTCALL __attribute__((fastcall))
+#           define FASTCALL __attribute__((__fastcall__))
 #       endif
 #   endif
 #endif
@@ -1454,15 +3544,19 @@
 #   define FASTCALL
 #endif
 
+#endif
+
 /* == PRAGMA DIRECTIVE ====================================================== */
 
+#ifndef __pragma
+
 /**
- *  @def __pragma(dir)
- *  @brief Microsoft-style pragma directive.
- *  @details Due to the existence of __prgma, it's more easily made
- *           cross-platform than C99 _Pragma lul
- *  
- *  @param[in] dir Compiler pragma directive to give.
+ * @def __pragma(dir)
+ * @brief Microsoft-style pragma directive.
+ * @details Due to the existence of __prgma, it's more easily made
+ *          cross-platform than C99 _Pragma lul
+ * 
+ * @param[in] dir Compiler pragma directive to give.
  */
 #if !MSVC_PREREQ(1) && !defined(__INTEL_COMPILER)
 #   if (STDC_PREREQ(199901L) || CPP_PREREQ(201103L)) /* C99+/C++11+ _Pragma */
@@ -1472,13 +3566,17 @@
 #   endif
 #endif
 
+#endif
+
 /* == FUNCTION ATTRIBUTES =================================================== */
+
+#ifndef ALLOCATOR
 
 /**
  * @def ALLOCATOR(deallocator)
  * @brief Denotes that a function allocates memory.
  * 
- * @param[in] deallocator Function to deallocate 
+ * @param[in] deallocator Function to deallocate
  */
 /**
  * @def DEPRECATED(msg)
@@ -1535,12 +3633,12 @@
     /* GCC 11+ has extended malloc attribute w/ specified deallocator */
 #   if GCC_PREREQ(110000) && !defined(__INTELLISENSE__)
 #       define ALLOCATOR(deallocator) \
-            __attribute__((malloc, malloc(deallocator)))
+            __attribute__((__malloc__, __malloc__(deallocator)))
 #   else
-#       define ALLOCATOR(deallocator) __attribute__((malloc))
+#       define ALLOCATOR(deallocator) __attribute__((__malloc__))
 #   endif
-#elif MSVC_PREREQ(1) || __has_declspec_attribute(allocator) || \
-    __has_declspec_attribute(restrict)
+#elif MSVC_PREREQ(1) || __has_declspec_attribute(allocator) \
+    || __has_declspec_attribute(restrict)
 #   if __has_declspec_attribute(allocator) && __has_declspec_attribute(restrict)
 #       define ALLOCATOR(deallocator) __declspec(allocator) __declspec(restrict)
 #   elif __has_declspec_attribute(allocator)
@@ -1553,14 +3651,14 @@
 #else
 #   define ALLOCATOR(deallocator)
 #endif
-#if (__has_c_attribute(deprecated) && STDC_PREREQ(201800L)) || \
-    (__has_cpp_attribute(deprecated) && CPP_PREREQ(201103L))
+#if (__has_c_attribute(deprecated) && STDC_PREREQ(201800L)) \
+    || (__has_cpp_attribute(deprecated) && CPP_PREREQ(201103L))
 #   define DEPRECATED(msg) [[deprecated(msg)]]
-#elif GCC_PREREQ(30100) || __has_attribute(depreceated)
+#elif __has_attribute(deprecated)
 #   if __has_extension(attribute_deprecated_with_message)
-#       define DEPRECATED(msg) __attribute__((depreceated(msg)))
+#       define DEPRECATED(msg) __attribute__((__deprecated__(msg)))
 #   else
-#       define DEPRECATED(msg) __attribute__((depreceated))
+#       define DEPRECATED(msg) __attribute__((__deprecated__))
 #   endif
 #elif __has_declspec_attribute(deprecated)
 #   if MSVC_PREREQ(1400)
@@ -1571,24 +3669,42 @@
 #else
 #   define DEPRECATED(msg)
 #endif
-#if CPP_PREREQ(201103L) /* C++11+ attribute noreturn */
-#   define NO_RETURN [[noreturn]]
-#elif STDC_PREREQ(201112L) /* C11+ _Noreturn */
-#   define NO_RETURN _Noreturn
-#elif __has_attribute(noreturn) /* GCC 2.5+ noreturn */
-#   define NO_RETURN __attribute__((noreturn))
+#if CPP_PREREQ(201103L) || STDC_PREREQ(202000L)
+#   define NO_RETURN [[noreturn]] /* C++11+/C23+ attribute noreturn */
+#elif STDC_PREREQ(201112L)
+#   define NO_RETURN _Noreturn /* C11+ _Noreturn */
+#elif __has_attribute(noreturn)
+#   define NO_RETURN __attribute__((__noreturn__))
 #elif __has_declspec_attribute(noreturn) /* MSVC noreturn */
 #   define NO_RETURN __declspec(noreturn)
 #else
 #   define NO_RETURN
 #endif
+#if (CPP_PREREQ(201103L) && __has_cpp_attribute(fallthrough)) \
+    || (STDC_PREREQ(202000L) && __has_c_attribute(fallthrough))
+#   define FALLTHROUGH [[fallthrough]]
+#elif __has_attribute(fallthrough)
+#   define FALLTHROUGH __attribute__((__fallthrough__))
+#else
+#   define FALLTHROUGH
+#endif
+#if __has_attribute(unavailable)
+#   define UNAVAILABLE __attribute__((__unavailable__))
+#elif (CPP_PREREQ(201103L) && __has_cpp_attribute(deprecated)) \
+    || (STDC_PREREQ(202000L) && __has_c_attribute(deprecated))
+#   define UNAVAILABLE [[deprecated]]
+#elif __has_attribute(deprecated)
+#   define UNAVAILABLE __attribute__((__deprecated__))
+#else
+#   define UNAVAILABLE
+#endif
 #if __has_attribute(const) /* GCC 2.5+ const */
-#   define CONST_FUNC __attribute__((const))
+#   define CONST_FUNC __attribute__((__const__))
 #else
 #   define CONST_FUNC
 #endif
 #if __has_attribute(pure) /* GCC 2.95+ pure */
-#   define PURE_FUNC __attribute__((pure))
+#   define PURE_FUNC __attribute__((__pure__))
 #else
 #   define PURE_FUNC
 #endif
@@ -1599,20 +3715,21 @@
 #else
 #   define NO_EXCEPT
 #endif
-#if (__has_c_attribute(nodiscard) && STDC_PREREQ(201800L)) || \
-    (__has_cpp_attribute(nodiscard) && CPP_PREREQ(201103L))
+#if (__has_c_attribute(nodiscard) && STDC_PREREQ(201800L)) \
+    || (__has_cpp_attribute(nodiscard) && CPP_PREREQ(201103L))
 #   define CHECK_RESULT [[nodiscard]] /* C2x+ / C++17+ nodiscard */
 #elif __has_attribute(warn_unused_result) /* GCC warn_unused_result */
-#   define CHECK_RESULT __attribute__((warn_unused_result))
-#elif MSVC_PREREQ(1400) || __has_include(<sal.h>) /* MSVC sal.h */
+#   define CHECK_RESULT __attribute__((__warn_unused_result__))
+#elif MSVC_PREREQ(1400) || __has_include(<sal.h>) \
+    && !defined(MACRODEFS_ONLY)  /* MSVC sal.h */
 #   include <sal.h>
 #   define _USE_SAL 1
 #endif
-#if GCC_PREREQ(30400) || __has_attribute(returns_nonnull)
-#   define NOTNULL_RETURN __attribute__((returns_nonnull))
+#if __has_attribute(returns_nonnull)
+#   define NOTNULL_RETURN __attribute__((__returns_nonnull__))
 #endif
-#if GCC_PREREQ(30400) || __has_attribute(nonnull)
-#   define NOTNULL_PARAMS(params) __attribute__((nonnull params))
+#if __has_attribute(nonnull)
+#   define NOTNULL_PARAMS(params) __attribute__((__nonnull__ params))
 #endif
 #ifdef _USE_SAL
 #   ifndef CHECK_RESULT
@@ -1635,9 +3752,9 @@
 #endif
 #if __has_attribute(format) /* GCC3 printf/scanf attrs */
 #   define PRINTF_FUNC(fstr_index, arg_index) \
-        __attribute__((format(printf, fstr_index, arg_index)))
+        __attribute__((__format__(__printf__, fstr_index, arg_index)))
 #   define SCANF_FUNC(fstr_index, arg_index) \
-        __attribute__((format(scanf, fstr_index, arg_index)))
+        __attribute__((__format__(__scanf__, fstr_index, arg_index)))
 #else
 #   define PRINTF_FUNC(fstr_index, arg_index)
 #   define SCANF_FUNC(fstr_index, arg_index)
@@ -1668,11 +3785,13 @@
  * @brief Prevents a function from being inlined by the compiler.
  */
 #if !CPP_PREREQ(1L) && !STDC_PREREQ(199901L) /* C++ & C99+ have inline */
-#   if MSVC_PREREQ(1) || defined(__BORLANDC__) || defined(__DMC__) || \
-        defined(__WATCOMC__) || defined(__LCC__) || defined(__CC_ARM)
+#   if MSVC_PREREQ(1) || defined(__BORLANDC__) || defined(__DMC__) \
+        || defined(__WATCOMC__) || defined(__LCC__) || defined(__CC_ARM)
 #       define inline __inline /* MSVC __inline */
-#   elif GCC_PREREQ(1) /* GCC __inline__ */
+#   elif GCC_PREREQ(1) && __has_attribute(gnu_inline) /* GCC __inline__ */
 #       define inline __inline__ __attribute__((__gnu_inline__))
+#   elif GCC_PREREQ(1)
+#       define inline __inline__
 #   else /* set inline as static if unavailable */
 #       define inline static
 #       define _NO_INLINE
@@ -1680,20 +3799,18 @@
 #endif
 #if MSVC_PREREQ(1200) /* MSVC __forceinline */
 #   define force_inline __forceinline
-#elif GCC_PREREQ(40000) || defined(__clang__) /* GCC4+/clang always_inline */
-#   ifdef __cplusplus /* with __inline__ in C++... */
+#elif __has_attribute(always_inline) /* GCC always_inline */
+#   if defined(__cplusplus) || !__has_attribute(gnu_inline)
 #       define force_inline __inline__ __attribute__((__always_inline__))
-#   else /* ...whilst adding gnu inline semantics in C */
+#   else
 #       define force_inline \
             __inline__ __attribute__((__always_inline__, __gnu_inline__))
 #   endif
-#elif __has_attribute(always_inline) /* GCC-esque always_inline */
-#   define force_inline inline __attribute__((always_inline))
 #else /* hope it gets inlined */
 #   define force_inline inline
 #endif
-#if (MSVC_PREREQ(1) && defined(__EDG__) && !CPP_PREREQ(1L)) || \
-    defined(_NO_INLINE) /* MSVC can't do static+inline... */
+#if (MSVC_PREREQ(1) && defined(__EDG__) && !CPP_PREREQ(1L)) \
+    || defined(_NO_INLINE) /* MSVC can't do static+inline... */
 #   define static_inline        inline
 #   define static_force_inline  force_inline
 #   ifdef _NO_INLINE /* ...plus resolves to static if no inline available */
@@ -1704,7 +3821,7 @@
 #   define static_force_inline  static force_inline
 #endif
 #if __has_attribute(noinline)
-#   define no_inline __attribute__((noinline))
+#   define no_inline __attribute__((__noinline__))
 #elif __has_declspec_attribute(noinline)
 #   define no_inline __declspec(noinline)
 #else
@@ -1717,11 +3834,11 @@
  * @def MAYBE_UNUSED
  * @brief Denotes a potentially unused variable, parameter, or function.
  */
-#if (CPP_PREREQ(201703L) && __has_cpp_attribute(maybe_unused)) || \
-    (STDC_PREREQ(201800L) && __has_c_attribute(maybe_unused)) 
+#if (CPP_PREREQ(201703L) && __has_cpp_attribute(maybe_unused)) \
+    || (STDC_PREREQ(201800L) && __has_c_attribute(maybe_unused))
 #   define MAYBE_UNUSED [[maybe_unused]] /* C++17/C2x+ maybe_unused */
 #elif __has_attribute(unused) /* GCC unused */
-#   define MAYBE_UNUSED __attribute__((unused))
+#   define MAYBE_UNUSED __attribute__((__unused__))
 #else
 #   define MAYBE_UNUSED
 #endif
@@ -1776,20 +3893,37 @@
  */
 #if CPP_PREREQ(201704L) || /* C++17+ likely/unlikely */ \
     (__has_cpp_attribute(likely) && __has_cpp_attribute(unlikely))
-#   define LIKELY(cond)     (cond) [[likely]]
-#   define UNLIKELY(cond)   (cond) [[unlikely]]
-#elif GCC_PREREQ(30000) || __has_builtin(__builtin_expect) /* GCC3+ expect */
-#   define LIKELY(cond)     (__builtin_expect((cond), 1))
-#   define UNLIKELY(cond)   (__builtin_expect((cond), 0))
+#   define LIKELY(cond)         (cond) [[likely]]
+#   define UNLIKELY(cond)       (cond) [[unlikely]]
+#   define LIKELY_LABEL(name)   [[likely]] name
+#   define UNLIKELY_LABEL(name) [[unlikely]] name
+#elif __has_builtin(__builtin_expect) /* GCC3+ expect */
+#   define LIKELY(cond)         (__builtin_expect((cond), 1))
+#   define UNLIKELY(cond)       (__builtin_expect((cond), 0))
 #else
-#   define LIKELY(cond)     (cond)
-#   define UNLIKELY(cond)   (cond)
-#endif /* GCC4+ builtin unreachable */
-#if GCC_PREREQ(4) || __has_builtin(__builtin_unreachable)
-#   define UNREACHABLE() do { __builtin_unreachable(); } while (0)
+#   define LIKELY(cond)         (cond)
+#   define UNLIKELY(cond)       (cond)
+#endif
+#ifndef LIKELY_LABEL
+#   if __has_attribute(cold) && GCC_PREREQ(40800)
+#       define LIKELY_LABEL(name)   name __attribute__((__cold__));
+#       define UNLIKELY_LABEL(name) name __attribute__((__hot__));
+#   else
+#       define LIKELY_LABEL(name)   name
+#       define UNLIKELY_LABEL(name) name
+#   endif
+#endif
+#if __has_builtin(__builtin_unreachable) /* GCC4+ builtin unreachable */
+#   define UNREACHABLE() __builtin_unreachable()
 #elif MSVC_PREREQ(1) /* MSVC assume intrinsic */
-#   define UNREACHABLE() do { __assume(0); } while (0)
-#else
+#   define UNREACHABLE() __assume(0)
+#elif CPP_PREREQ(1L) && !defined(MACRODEFS_ONLY)
+#   include <cstdlib>
+#   define UNREACHABLE() std::abort()
+#elif __STDC_HOSTED__ && !defined(MACRODEFS_ONLY)
+#   include <stdlib.h>
+#   define UNREACHABLE() abort()
+#elif !defined(MACRODEFS_ONLY)
 #   define UNREACHABLE()
 #endif
 
@@ -1799,11 +3933,14 @@
  * @def __restrict
  * @brief Hints that a pointer isn't aliased by another variable.
  */
+#ifdef __restrict
+#   undef __restrict
+#endif
 #if STDC_PREREQ(199901L)
 #   define __restrict restrict
-#elif GCC_PREREQ(1)
+#elif GCC_PREREQ(1) || CLANG_PREREQ(1)
 #   define __restrict __restrict__
-#else
+#elif !defined(__CC_ARM)
 #   define __restrict
 #endif
 
@@ -1820,9 +3957,11 @@
 #       define thread_local __thread
 #   elif MSVC_PREREQ(1) || __has_declspec_attribute(thread) /* MSVC declspec */
 #       define thread_local __declspec(thread)
-#   else
+#   elif !__has_extension(cxx_thread_local)
 #       define _NO_THREAD_LOCAL 1
 #   endif
+#endif
+
 #endif
 
 /* == OFFSETOF ============================================================== */
@@ -1835,14 +3974,19 @@
  * @param[in] type  The type containing @e field.
  * @param[in] field The field to find the relative offset of within @e type.
  */
-#if CPP_PREREQ(1L)
-#   include <cstddef>
-#else
-#   include <stddef.h>
+#ifndef MACRODEFS_ONLY
+#   if CPP_PREREQ(1L)
+#       include <cstddef>
+#   else
+#       include <stddef.h>
+#   endif
 #endif
 #ifndef offsetof
-#   if GCC_PREREQ(4) || __has_builtin(__builtin_offsetof)
+#   if __has_builtin(__builtin_offsetof)
 #       define offsetof(type, field) __builtin_offsetof(type, field)
+#   elif GCC_PREREQ(30400) && CPP_PREREQ(1L)
+#       define offsetof(type, field) __offsetof__(reinterpret_cast<size_t>( \
+            (&reinterpret_cast<char&>(static_cast<type*>(0)->field))))
 #   else
 #       define offsetof(type, field) \
             ((uintptr_t)((char*)&((type*)0)->field - (char*)0))
@@ -1867,6 +4011,8 @@
 
 /* == ALIGNMENT ============================================================= */
 
+#ifndef ALIGN_OF
+
 /**
  * @def ALIGN_OF(type)
  * @brief Retrieves the alignment of a given type.
@@ -1875,10 +4021,10 @@
  */
 /**
  * @def ALIGN_TO(size)
- * @brief Denotes that an associated type's alignment must be based on a given 
+ * @brief Denotes that an associated type's alignment must be based on a given
  *        power of two.
  * 
- * @param[in] size Bytes to align to. Must be a power of 2. 
+ * @param[in] size Bytes to align to. Must be a power of 2.
  */
 /**
  * @def ALIGN_TYPE(type)
@@ -1908,8 +4054,8 @@
 #   define ALIGN_TO(size)   __declspec(align(size))
 #   define ALIGN_TYPE(type) __declspec(align(ALIGN_OF(type)))
 #elif __has_attribute(aligned) /* GCC2+ aligned */
-#   define ALIGN_TO(size)   __attribute__((aligned(size)))
-#   define ALIGN_TYPE(type) __attribute__((aligned(ALIGN_OF(type))))
+#   define ALIGN_TO(size)   __attribute__((__aligned__(size)))
+#   define ALIGN_TYPE(type) __attribute__((__aligned__(ALIGN_OF(type))))
 #else
 #   define _NO_ALIGNTO
 #endif
@@ -1936,15 +4082,10 @@
  * @param[in] cond The condition to check for.
  * @param[in] msg  A message to display on assertion failure.
  */
-#if STDC_PREREQ(201112L) && !STDC_PREREQ(201800L)
+#if STDC_PREREQ(201112L) && !STDC_PREREQ(202000L)
 #   define __MACRODEFS_STATIC_ASSERT2 _Static_assert
 #elif CPP_PREREQ(201103L) && !CPP_PREREQ(201703L)
 #   define __MACRODEFS_STATIC_ASSERT2 static_assert
-#elif GCC_PREREQ(40300) && !defined(__STRICT_ANSI__)
-#   define __MACRODEFS_STATIC_ASSERT2(cond, msg) ({ \
-        extern int __attribute__((__error__(msg))) \
-        CONCATENATE(__macrodefs_static_assert, __COUNTER__)(); \
-    })
 #elif defined(__COUNTER__)
 #   define __MACRODEFS_STATIC_ASSERT1(cond) \
         typedef char CONCATENATE(__macrodefs_static_assert_, __COUNTER__) \
@@ -1989,6 +4130,8 @@
 #   define static_assert2(cond, msg) static_assert(cond, msg)
 #endif
 
+#endif
+
 /* == RUNTIME ASSERTIONS ==================================================== */
 
 /**
@@ -2012,7 +4155,7 @@
 #       undef _DEBUG
 #   endif
 #endif
-#ifdef DEBUG
+#if defined(DEBUG) && !defined(MACRODEFS_ONLY)
 #   if CPP_PREREQ(1L)
     extern "C" {
 #   endif
@@ -2057,7 +4200,11 @@
 
 /* == DEBUG BREAKPOINTS ===================================================== */
 
-#if MSVC_PREREQ(1000)
+#ifndef BREAKPOINT
+
+#if __has_builtin(__builtin_debug_trap)
+#   define BREAKPOINT() __builtin_debug_trap()
+#elif MSVC_PREREQ(1000) && !defined(MACRODEFS_ONLY)
     extern void CDECL __debugbreak(void);
 #   define BREAKPOINT() __debugbreak()
 #elif GCC_PREREQ(1) && (defined(__i386__) || defined(__x86_64__))
@@ -2068,7 +4215,7 @@
 #   define BREAKPOINT() __asm__ __volatile__ ( "bkpt #22\n\t" )
 #elif defined(__WATCOMC__) && defined(__i386__)
 #   define BREAKPOINT() do { _asm { int 0x03} } while (0)
-#elif !defined(__WATCOMC__)
+#elif !defined(__WATCOMC__) && __STDC_HOSTED__ && !defined(MACRODEFS_ONLY)
 #   include <signal.h>
 #   ifdef SIGTRAP
 #       define BREAKPOINT() raise(SIGTRAP)
@@ -2088,18 +4235,64 @@
  * @brief Identifier containing the full function signature in C++ mode.
  *        Identical to @c __func__ in C mode.
  */
-#if MSVC_PREREQ(1300) || (GCC_PREREQ(1) && (__GNUC__ < 3))
-#   define __func__ __FUNCTION__ /* MSVC 2002+ / GCC2.99- __FUNCTION__ */
-#elif !(GCC_PREREQ(3)) && !STDC_PREREQ(199409L) && !CPP_PREREQ(201103L)
+#if MSVC_PREREQ(1300) || (GCC_PREREQ(20000) && !GCC_PREREQ(30000))
+#   define __func__ __FUNCTION__ /* MSVC 2002+ / GCC2 __FUNCTION__ */
+#elif !GCC_PREREQ(30000) && !STDC_PREREQ(199901L) && !CPP_PREREQ(201103L)
 #   ifndef __func__
 #       define __func__ "???"
 #   endif
 #endif
 #if MSVC_PREREQ(1300) /* MSVC 2002+ __FUNCSIG__ */
 #   define __PRETTY_FUNCTION__ __FUNCSIG__
-#elif !GCC_PREREQ(1) /* GCC __PRETTY_FUNCTION__ */
+#elif !GCC_PREREQ(20000) /* GCC __PRETTY_FUNCTION__ */
 #   define __PRETTY_FUNCTION__ __func__
 #endif
+
+/* == STANDARD BOOLEAN TYPE ================================================= */
+
+/**
+ * @def bool
+ * @brief A type which can store only two values: @c true or @c false.
+ */
+/**
+ * @def true
+ * @brief Expands to boolean value 1.
+ */
+/**
+ * @def false
+ * @brief Expands to boolean value 0.
+ */
+#if !CPP_PREREQ(1L)
+#   if STDC_PREREQ(199901L) || MSVC_PREREQ(1800) || __has_include(<stdbool.h>)
+#       include <stdbool.h> /* C99+/MSVC 1800+ */
+#   else
+#       ifdef MACRODEFS_ONLY
+#           define bool uint8_t
+#       else
+            typedef uint8_t __macrodef_bool;
+#           define bool  __macrodef_bool
+#       endif
+#       define false ((bool)0)
+#       define true  ((bool)1)
+#   endif
+#endif
+
+/* == ARCHITECTURE WORD SIZE ================================================ */
+
+#if defined(__linux__) && !defined(MACRODEFS_ONLY)
+#   include <asm/types.h>
+#   define WORD_SIZE BITS_PER_LONG
+#elif defined __WORDSIZE
+#   define WORD_SIZE __WORDSIZE
+#elif defined(__aarch64__) || defined(__x86_64__) || defined(__ia64__) \
+    || defined(__powerpc64__) || (defined(__riscv_xlen) && (__riscv_xlen == 64))
+#   define WORD_SIZE 64
+#else
+#   define WORD_SIZE 32
+#endif
+
+#endif
+#ifndef MACRODEFS_ONLY
 
 /* == STANDARD SIZED INTEGER TYPES ========================================== */
 
@@ -2215,12 +4408,16 @@
  * @typedef uintmax_t
  * @brief The largest available unsigned integral type.
  */
+#if !MSVC_PREREQ(1300) || MSVC_PREREQ(1500) /* deprecated in MSVC2008 */
+    /* __w64 informs that the pointer size changes on 64-bit machines */
+#   define __w64
+#endif
 #if CPP_PREREQ(201103L) || (!STDC_PREREQ(1L) && __has_include(<cstdint>))
 #   include <cstdint> /* don't import C++ header in C mode */
 #   include <cinttypes>
 #   define _SIZED_TYPES_INCLUDED 1
-#elif STDC_PREREQ(199901L) || defined(__GNUC__) || defined(__SCO__) || \
-    defined(__USLC__) || __has_include(<stdint.h>)
+#elif STDC_PREREQ(199901L) || defined(__GNUC__) || defined(__SCO__) \
+    || defined(__USLC__) || __has_include(<stdint.h>)
 #   include <stdint.h> /* do import C99 header where it's supported in C mode */
 #   include <inttypes.h>
 #   define _SIZED_TYPES_INCLUDED 1
@@ -2252,8 +4449,8 @@
 #   define UINT16_C(val) val ##ui16
 #   define  INT32_C(val) val ##i32
 #   define UINT32_C(val) val ##ui32
-#   if MSVC_PREREQ(1) || defined(__WATCOM_INT64__) || \
-        (defined(__BORLANDC__) && __BORLANDC__ > 0x460) /* MSVC-style __int64 */
+#   if MSVC_PREREQ(1) || defined(__WATCOM_INT64__) /* MSVC-style __int64 */ \
+        || (defined(__BORLANDC__) && __BORLANDC__ > 0x460)
         typedef   signed __int64  int64_t;
         typedef unsigned __int64 uint64_t;
 #       define  INT64_C(val) val ##i64
@@ -2307,8 +4504,8 @@
 #       define SCNx64 "lx"
 #       define SCNX64 "lX"
 #       define _INT64_DEFINED 1
-#   elif defined(__MWERKS__) || defined(__SUNPRO_C) || defined(__SUNPRO_CC) || \
-        defined(_LONG_LONG) /* C99-style long long */
+#   elif defined(__MWERKS__) || defined(__SUNPRO_C) || defined(__SUNPRO_CC) \
+        || defined(_LONG_LONG) /* C99-style long long */
         typedef   signed long long  int64_t;
         typedef unsigned long long uint64_t;
 #       define  INT64_C(val) val ##ll
@@ -2330,8 +4527,8 @@
 #endif
 #ifdef _SIZED_TYPES_INCLUDED
 #   undef _SIZED_TYPES_INCLUDED
-#   if defined(UINT64_C) || defined(UINT64_MAX) || MSVC_PREREQ(1) || \
-        STDC_PREREQ(199901L) /* detect 64-bit int support */
+#   if defined(UINT64_C) || defined(UINT64_MAX) || MSVC_PREREQ(1) \
+        || STDC_PREREQ(199901L) /* detect 64-bit int support */
 #       define _INT64_DEFINED 1
 #   endif
 #else /* fast_t, least_t, ptr_t, max_t, C, MIN, MAX, PRI, and SCN defines */
@@ -2371,8 +4568,8 @@
 #   define SCNu32 "u"
 #   define SCNx32 "x"
 #   define SCNX32 "X"
-#   if defined(__arm__) || defined(__aarch64__) || defined(__powerpc__) || \
-        defined(__powerpc64__)
+#   if defined(__arm__) || defined(__aarch64__) || defined(__powerpc__) \
+        || defined(__powerpc64__) || defined(__mips__)
         typedef  int32_t   int_fast8_t;
         typedef uint32_t  uint_fast8_t;
         typedef  int32_t  int_fast16_t;
@@ -2459,28 +4656,28 @@
 #       define SCNxFAST32 SCNx32
 #       define SCNXFAST32 SCNX32
 #   endif
-    typedef   int_fast8_t   int_least8_t;
-    typedef  uint_fast8_t  uint_least8_t;
-    typedef  int_fast16_t  int_least16_t;
-    typedef uint_fast16_t uint_least16_t;
-    typedef  int_fast32_t  int_least32_t;
-    typedef uint_fast32_t uint_least32_t;
-#   define PRIdLEAST8 PRIdFAST32
-#   define PRIiLEAST8 PRIiFAST32
-#   define PRIoLEAST8 PRIoFAST32
-#   define PRIuLEAST8 PRIuFAST32
-#   define PRIxLEAST8 PRIxFAST32
-#   define PRIXLEAST8 PRIXFAST32
-#   define SCNdLEAST8 SCNdFAST32
-#   define SCNiLEAST8 SCNiFAST32
-#   define SCNoLEAST8 SCNoFAST32
-#   define SCNuLEAST8 SCNuFAST32
-#   define SCNxLEAST8 SCNxFAST32
-#   define SCNXLEAST8 SCNXFAST32
-#   define PRIdLEAST16 PRIdFAST32
-#   define PRIiLEAST16 PRIiFAST32
-#   define PRIoLEAST16 PRIoFAST32
-#   define PRIuLEAST16 PRIuFAST32
+    typedef   int8_t   int_least8_t;
+    typedef  uint8_t  uint_least8_t;
+    typedef  int16_t  int_least16_t;
+    typedef uint16_t uint_least16_t;
+    typedef  int32_t  int_least32_t;
+    typedef uint32_t uint_least32_t;
+#   define PRIdLEAST8 PRId8
+#   define PRIiLEAST8 PRIi8
+#   define PRIoLEAST8 PRIo8
+#   define PRIuLEAST8 PRIu8
+#   define PRIxLEAST8 PRIx8
+#   define PRIXLEAST8 PRIX8
+#   define SCNdLEAST8 SCNd8
+#   define SCNiLEAST8 SCNi8
+#   define SCNoLEAST8 SCNo8
+#   define SCNuLEAST8 SCNu8
+#   define SCNxLEAST8 SCNx8
+#   define SCNXLEAST8 SCNX8
+#   define PRIdLEAST16 PRId16
+#   define PRIiLEAST16 PRIi16
+#   define PRIoLEAST16 PRIo16
+#   define PRIuLEAST16 PRIu16
 #   define PRIxLEAST16 PRIxFAST32
 #   define PRIXLEAST16 PRIXFAST32
 #   define SCNdLEAST16 SCNdFAST32
@@ -2588,8 +4785,8 @@
 #       define SCNxMAX SCNx32
 #       define SCNXMAX SCNX32
 #   endif
-#   if (defined(_WIN64) || defined(__aarch64__) || defined(__powerpc64__) || \
-        defined(__x86_64__) || defined(__ia64__)) && defined(_INT64_DEFINED)
+#   if (defined(_WIN64) || defined(__aarch64__) || defined(__powerpc64__) \
+        || defined(__x86_64__) || defined(__ia64__)) && defined(_INT64_DEFINED)
         typedef  int64_t  intptr_t;
         typedef uint64_t uintptr_t;
 #       define  INTPTR_MIN  INT64_MIN
@@ -2609,10 +4806,6 @@
 #       define SCNxPTR SCNx64
 #       define SCNXPTR SCNX64
 #   else
-        /* __w64 informs that the pointer size changes on 64-bit machines */
-#       if !MSVC_PREREQ(1300)
-#           define __w64
-#       endif
         typedef  int32_t __w64  intptr_t;
         typedef uint32_t __w64 uintptr_t;
 #       define  INTPTR_MIN  INT32_MIN
@@ -2639,31 +4832,6 @@
 
 #ifndef SIZE_MAX
 #   define SIZE_MAX ((size_t)-1)
-#endif
-
-/* == STANDARD BOOLEAN TYPE ================================================= */
-
-/**
- * @def bool
- * @brief A type which can store only two values: @c true or @c false.
- */
-/**
- * @def true
- * @brief Expands to boolean value 1.
- */
-/**
- * @def false
- * @brief Expands to boolean value 0.
- */
-#if !CPP_PREREQ(1L)
-#   if STDC_PREREQ(199901L) || MSVC_PREREQ(1800) || __has_include(<stdbool.h>)
-#       include <stdbool.h> /* C99+/MSVC 1800+ */
-#   else
-        typedef uint8_t __macrodef_bool;
-#       define bool  __macrodef_bool
-#       define false ((bool)0)
-#       define true  ((bool)1)
-#   endif
 #endif
 
 /* == MINMAX MACROS ========================================================= */
@@ -2703,52 +4871,6 @@
         }
 #   if !CPP_PREREQ(201103L)
 #       undef constexpr
-#   else
-#       include <cmath>
-
-        template <>
-        constexpr force_inline float __macrodefs_min(
-            float a,
-            float b
-        ) {
-            return std::fminf(a, b);
-        }
-        template <>
-        constexpr force_inline double __macrodefs_min(
-            double a,
-            double b
-        ) {
-            return std::fmin(a, b);
-        }
-        template <>
-        constexpr force_inline long double __macrodefs_min(
-            long double a,
-            long double b
-        ) {
-            return std::fminl(a, b);
-        }
-
-        template <>
-        constexpr force_inline float __macrodefs_max(
-            float a,
-            float b
-        ) {
-            return std::fmaxf(a, b);
-        }
-        template <>
-        constexpr force_inline double __macrodefs_max(
-            double a,
-            double b
-        ) {
-            return std::fmax(a, b);
-        }
-        template <>
-        constexpr force_inline long double __macrodefs_max(
-            long double a,
-            long double b
-        ) {
-            return std::fmaxl(a, b);
-        }
 #   endif
 #   define MIN(a, b) __macrodefs_min(a, b)
 #   define MAX(a, b) __macrodefs_max(a, b)
@@ -2846,11 +4968,10 @@
  * 
  * @returns The byte-reversed version of @e x.
  */
-#if GCC_PREREQ(40300) || (__has_builtin(__builtin_bswap16) && \
-    __has_builtin(__builtin_bswap32)) /* GCC4.3+ bswap builtins */
+#if __has_builtin(__builtin_bswap16) && __has_builtin(__builtin_bswap32)
 #   define BSWAP16(x) __builtin_bswap16(x)
 #   define BSWAP32(x) __builtin_bswap32(x)
-#   if GCC_PREREQ(40300) || __has_builtin(__builtin_bswap64)
+#   if __has_builtin(__builtin_bswap64)
 #       define BSWAP64(x) __builtin_bswap64(x)
 #   endif
 #elif defined(_MSC_VER) /* MSVC byteswap funcdefs */
@@ -3035,8 +5156,8 @@
 #   define htole64(x) OSSwapHostToLittleInt64(x)
 #   define be64toh(x) OSSwapBigToHostInt64(x)
 #   define le64toh(x) OSSwapLittleToHostInt64(x)
-#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) || \
-    defined(__DragonFly__) /* BSD endian utils, but it has wack defines */
+#elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__FreeBSD__) \
+    || defined(__DragonFly__) /* BSD endian utils, but it has wack defines */
 #   include <sys/endian.h>
 #   ifndef __OpenBSD__
 #       define be16toh(x) betoh16(x)
@@ -3065,8 +5186,14 @@
 #   ifndef BYTE_ORDER
 #       ifdef __BYTE_ORDER__ /* if on GCC, use compiler-defined byte-order */
 #           define BYTE_ORDER   __BYTE_ORDER__
-#       elif defined(__x86_64__) || defined(__i386__) || \
-            defined(__aarch64__) || defined(__arm__) /* otherwise guess */
+#       elif defined(__BIG_ENDIAN__) || defined(__ARMEB__) \
+            || defined(__THUMBEB__) || defined(__AARCH64EB__) \
+            || defined(_MIPSEB) || defined(__MIPSEB) || defined(__MIPSEB__)
+#           define BYTE_ORDER   BIG_ENDIAN
+#       elif defined(__LITTLE_ENDIAN__) || defined(__ARMEL__) \
+            || defined(__THUMEL__) || defined(__AARCH64EL__) \
+            || defined(_MIPSEL) || defined(__MIPSEL) || defined(__MIPSEL__) \
+            || defined(_WIN32) || defined(__i386__) || defined(__x86_64__)
 #           define BYTE_ORDER   LITTLE_ENDIAN
 #       else
 #           define BYTE_ORDER   BIG_ENDIAN
@@ -3122,5 +5249,7 @@
 #endif
 
 /* ========================================================================== */
+
+#endif /* !MACRODEFS_ONLY */
 
 #endif /* MACRODEFS_H_ */
