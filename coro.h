@@ -1,9 +1,9 @@
 /**
  * @file coro.h
  * @author Simon Bolivar
- * @date 23 Mar 2022
+ * @date 17 Jul 2022
  * 
- * @brief Coroutine library using fibers.
+ * @brief Stackful and stackless coroutine library.
  * 
  * @note This code was inspired by and adapted from Coco, a true C coroutine
  *       patch for the Lua runtime by Mike Pall: http://coco.luajit.org/
@@ -43,6 +43,8 @@
 #endif
 
 /* == STACKFUL COROUTINES (FIBERS) ========================================== */
+
+#ifndef CORO_NO_FIBERS
 
 /**
  * @brief A stackful cooperative thread.
@@ -1034,20 +1036,152 @@ static_force_inline void fiber_suspend(
 #ifdef __ALIGNED_END
 #   undef __ALIGNED_END
 #endif /* __ALIGNED_END */
-#ifdef __CORO_SWITCH
-#   undef __CORO_SWITCH
-#endif /* __CORO_SWITCH */
-#ifdef __CORO_JMPBUF
-#   undef __CORO_JMPBUF
-#endif /* __CORO_JMPBUF */
-#ifdef __CORO_CTX_PATCH
-#   undef __CORO_CTX_PATCH
-#endif /* __CORO_CTX_PATCH */
-#ifdef __CORO_CTX_EXTRA
-#   undef __CORO_CTX_EXTRA
-#endif /* __CORO_CTX_EXTRA */
-#ifdef __CORO_CTX_INIT
-#   undef __CORO_CTX_INIT
-#endif /* __CORO_CTX_INIT */
+#ifdef __FIBER_SWITCH
+#   undef __FIBER_SWITCH
+#endif /* __FIBER_SWITCH */
+#ifdef __FIBER_JMPBUF
+#   undef __FIBER_JMPBUF
+#endif /* __FIBER_JMPBUF */
+#ifdef __FIBER_CTX_PATCH
+#   undef __FIBER_CTX_PATCH
+#endif /* __FIBER_CTX_PATCH */
+#ifdef __FIBER_CTX_EXTRA
+#   undef __FIBER_CTX_EXTRA
+#endif /* __FIBER_CTX_EXTRA */
+#ifdef __FIBER_CTX_INIT
+#   undef __FIBER_CTX_INIT
+#endif /* __FIBER_CTX_INIT */
+
+#endif /* CORO_NO_FIBERS */
+
+/* == STACKLESS COROUTINES ================================================== */
+
+#if WORD_SIZE == 32
+    typedef uint32_t Coro_Stack;
+#else
+    typedef uint64_t Coro_Stack;
+#endif
+
+#define CORO_ALIGN_SIZE(size, alignment) \
+    ((~(alignment-1))&((size)+(alignment-1)))
+
+#define CORO_DECLARE_WITHOUT_FRAME(RetT, name) \
+    typedef RetT _CoroRet ##name; \
+    typedef void _CoroFrame ##name; \
+    enum { _CORO_FRAME_SIZE_ ##name = 1 }
+#define CORO_DECLARE_WITH_FRAME(RetT, name, frame) \
+    typedef RetT _CoroRet ##name; \
+    WASM_DEFINE(struct, _CoroFrame ##name) frame; \
+    enum { \
+        _CORO_FRAME_SIZE_ ##name = (WASM_ALIGN_SIZE( \
+            sizeof(_CoroFrame ##name), ALIGN_OF(Coro_Stack) \
+        ) / sizeof(Coro_Stack)) + 1 \
+    }
+
+#define _CORO_DECLARE2 CORO_DECLARE_WITHOUT_FRAME
+#define _CORO_DECLARE3 CORO_DECLARE_WITH_FRAME
+#ifdef _GNUC_VA_ARGS
+#   define CORO_DECLARE(args...) \
+        CONCATENATE(_CORO_DECLARE, VARGCOUNT(args))(args)
+#elif !defined _NO_VA_ARGS
+#   define CORO_DECLARE(...) \
+        CONCATENATE(_CORO_DECLARE, VARGCOUNT(__VA_ARGS__))(__VA_ARGS__)
+#else
+#   define CORO_DECLARE(RetT, name) _CORO_DECLARE2(RetT, name)
+#endif
+
+#ifndef _NO_VA_ARGS
+#   define _CORO_DEFINE1(name) _CoroRet ##name name
+#   define _CORO_DEFINE2(name, params) \
+        _CORO_DEFINE1(name) params
+#   define _CORO_DEFINE3(name, params, body) \
+        _CORO_DEFINE1(name) params { \
+            CORO_START(name) body CORO_END; \
+        }
+#   define _CORO_DEFINE11(name) _CoroRet ##name name
+#   define _CORO_DEFINE01(name, params) _CoroRet ##name name params
+#else
+#   define CORO_DEFINE(name) _CoroRet ##name name
+#endif
+#ifdef _GNUC_VA_ARGS
+#   define _CORO_PASTE_BODY1(name, args...)
+#   define _CORO_PASTE_BODY0(name, args...) \
+        { CORO_BEGIN(name) { args } CORO_END }
+#   define CORO_DEFINE(args...) \
+        _CoroRet ##name name _TUPHEAD(args) \
+            CONCATENATE(_CORO_PASTE_BODY, \
+                VARGEMPTY(_TUPHEAD(args)) \
+            )(name, _TUPTAIL(args))
+#elif !defined _NO_VA_ARGS
+#   define _CORO_DEFINE00(name, params, ...) \
+        _CORO_DEFINE01(name, params) { CORO_BEGIN(name) __VA_ARGS__ CORO_END; }
+#   define CORO_DEFINE(...) \
+        _CORO_INVOKE(_PASTE3,(_CORO_DEFINE, \
+            VARGEMPTY _TUPTAIL(__VA_ARGS__), \
+            VARGEMPTY _TUPTAIL _TUPTAIL(__VA_ARGS__) \
+        ))(__VA_ARGS__)
+#endif
+
+#define CORO_BEGIN(name) do \
+    switch (coro[0] & UINT32_C(0xffffffff)) { \
+        enum { _lineoff = __LINE__ }; \
+        Coro_Stack *const coro_next = &coro[_CORO_FRAME_SIZE_ ##name]; \
+        _CoroFrame ##name *const frame = (_CoroFrame ##name*)&coro[1]; \
+        (void)frame; (void)coro_next; \
+    default: do
+#define CORO_END while (0); } while (0)
+
+#define CORO_YIELD_(line, value) do { \
+    coro[0] = (Coro_Stack)(line); \
+    return value; \
+case line:; } while (0)
+#ifndef _NO_VA_ARGS
+#   define _CORO_YIELD0() _CORO_YIELD1()
+#   define _CORO_YIELD1(value) do { \
+        coro[0] = (Coro_Stack)(__LINE__ - _lineoff); \
+        return value; \
+    case __LINE__ - _lineoff:; } while (0)
+#   define _CORO_YIELD2(line, value) CORO_YIELD_(line, value)
+#   define _CORO_YIELD11(line) CONCATENATE(_CORO_YIELD11,VARGEMPTY(line))(line)
+#   define _CORO_YIELD111() _CORO_YIELD1()
+#   define _CORO_YIELD110 _CORO_YIELD1
+#   define _CORO_YIELD101(line, value) _CORO_YIELD1(value)
+#   define _CORO_YIELD100 _CORO_YIELD2
+#   define _CORO_INVOKE_(a, b) a b
+#   define _CORO_INVOKE(a, b) _CORO_INVOKE_(a, b)
+#   define _CORO_SAVE(a,n) CONCATENATE(_CORO_SAVE, VARGCOUNT n) n
+#   define _CORO_SAVE1(n) frame->n = n
+#   define _CORO_SAVE2(a,b) frame->a = b
+#   define _CORO_RESTORE(a,n) CONCATENATE(_CORO_RESTORE, VARGCOUNT n) n
+#   define _CORO_RESTORE1(n) n = frame->n
+#   define _CORO_RESTORE2(a,b) b = frame->a
+#else
+#   define CORO_YIELD(value) do { \
+        coro[0] = (Coro_Stack)(__LINE__ - _lineoff); \
+        return value; \
+    case __LINE__ - _lineoff:; } while (0)
+#endif
+#ifdef _GNUC_VA_ARGS
+#   define CORO_YIELD(args...) \
+        CONCATENATE(_CORO_YIELD, VARGCOUNT(args))(args)
+#elif !defined _NO_VA_ARGS
+#   define _CORO_YIELD01(line, value) \
+        CONCATENATE(_CORO_YIELD10,VARGEMPTY(line))(line, value)
+#   define _CORO_YIELD00(line, value, ...) do { \
+        VARGAPPLY(_CORO_SAVE,, (__VA_ARGS__), SEMICOLON); \
+        _CORO_YIELD01(line, value); \
+        VARGAPPLY(_CORO_RESTORE,, (__VA_ARGS__), SEMICOLON); \
+    } while (0)
+#   define CORO_YIELD(...) \
+        _CORO_INVOKE(_PASTE3,(_CORO_YIELD, \
+            VARGEMPTY _TUPTAIL(__VA_ARGS__), \
+            VARGEMPTY _TUPTAIL _TUPTAIL(__VA_ARGS__) \
+        ))(__VA_ARGS__)
+#endif
+
+#define CORO_RETURN(value) do { \
+    if (coro[0]) coro[0] = 0; \
+    return value; \
+} while (0)
 
 #endif /* CORO_H_ */
