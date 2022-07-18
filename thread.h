@@ -211,6 +211,7 @@
 #       define SEM_VALUE_MAX INT_MAX
 #   elif !defined(__APPLE__) && !defined(__MVS__)
 #       include <semaphore.h>
+#       define _POSIX_SEMAPHORE_IMPL 1
 #   endif
 
 #else /* -- unsupported operating system ------------------------------------ */
@@ -301,6 +302,8 @@ THRD_API void THRD_CALL call_once(
 
 #endif
 
+#ifndef _POSIX_SEMAPHORE_IMPL
+
 THRD_API int THRD_CALL sem_init(
     sem_t* sem,
     int shared,
@@ -314,14 +317,20 @@ THRD_API int THRD_CALL sem_timedwait(
     sem_t *__restrict sem,
     struct timespec const *__restrict duration
 ) NO_EXCEPT;
-THRD_API int THRD_CALL sem_reltimedwait_np(
-    sem_t *__restrict sem,
-    struct timespec const *__restrict duration
-) NO_EXCEPT;
 THRD_API int THRD_CALL sem_getvalue(
     sem_t *__restrict sem,
     int *__restrict result_out
 ) NO_EXCEPT;
+
+#endif
+#if !defined _POSIX_SEMAPHORE_IMPL || !defined __SOLARIS__
+
+THRD_API int THRD_CALL sem_reltimedwait_np(
+    sem_t *__restrict sem,
+    struct timespec const *__restrict duration
+) NO_EXCEPT;
+
+#endif
 
 THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
 
