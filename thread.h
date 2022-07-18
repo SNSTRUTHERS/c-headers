@@ -1,9 +1,9 @@
 /**
  * @file thread.h
  * @author Simon Bolivar
- * @date 22 Mar 2022
+ * @date 17 Jul 2022
  * 
- * @brief Standard C11 library compatible threading header.
+ * @brief Standard C11 threading and POSIX semaphore compatible library.
  * 
  * @copyright LGPL-3.0
  */
@@ -13,7 +13,32 @@
 
 #include "macrodefs.h"
 
-#if defined(_WIN32) || defined(__WINRT__)
+#if defined(__STDCPP_THREADS__) && (__STDCPP_THREADS__ == 0)
+#   error "Cannot include thread.h in a single-threaded environment."
+#endif
+
+#ifndef THRD_API
+#   ifdef THRD_FROM_DLL
+#       define THRD_API extern IMPORT
+#   elif defined THRD_BUILD_DLL
+#       define THRD_API extern EXPORT
+#   elif defined THRD_STATIC_INCLUDE
+#       define THRD_API static
+#   else
+#       define THRD_API extern
+#   endif
+#endif
+#ifndef THRD_CALL
+#   define THRD_CALL CDECL
+#endif
+
+/* == TYPE DEFINES + INCLUDES =============================================== */
+
+#include <limits.h>
+#ifndef __STDC_NO_THREADS__
+#   include <threads.h>
+#endif
+#if defined(__WINRT__) || defined(_WIN32) /* -- windows implementation ------ */
 #   define NOATOM               1
 #   define NOCOMM               1
 #   define NOCRYPT              1
@@ -33,102 +58,296 @@
 #   define NOTEXTMETRIC         1
 #   define NOWH                 1
 #   define WIN32_LEAN_AND_MEAN  1
-#   include <limits.h>
+#       include <windows.h>
+#   undef WIN32_LEAN_AND_MEAN
+#   undef NOWH
+#   undef NOTEXTMETRIC
+#   undef NOSYSMETRICS
+#   undef NOSOUND
+#   undef NOSERVICE
+#   undef NOSCROLL
+#   undef NORASTEROPS
+#   undef NOOPENFILE
+#   undef NOMSG
+#   undef NOMETAFILE
+#   undef NOMCX
+#   undef NOKANJI
+#   undef NOIME
+#   undef NOGDICAPMASKS
+#   undef NOGDI
+#   undef NOCRYPT
+#   undef NOCOMM
+#   undef NOATOM
+
+#   ifdef __STDC_NO_THREADS__
+        enum thrd_result {
+            thrd_success = 0,
+            thrd_nomem = ERROR_OUTOFMEMORY,
+            thrd_timedout = WAIT_TIMEOUT,
+            thrd_busy = ERROR_BUSY,
+            thrd_error = -1
+        };
+
+        enum mtx_flags {
+            mtx_plain = 0,
+            mtx_recursive = 1,
+            mtx_timed = 2
+        };
+
+        struct timespec {
+            time_t tv_sec;
+            long tv_nsec;
+        };
+
+        typedef HANDLE thrd_t;
+        typedef CRITICAL_SECTION mtx_t;
+        typedef DWORD tss_t;
+#       if !defined(__WINRT__) || (_WIN32_WINNT < 0x0600)
+            typedef struct cnd_s {
+                CRITICAL_SECTION lock;
+                int wait, sigs;
+                sem_t sem_wait, sem_done;
+            } cnd_t;
+#           define _NO_VISTA_CONDVAR 1
+#       else
+            typedef CONDITION_VARIABLE cnd_t;
+#       endif
+#   endif
+
+    typedef union sem_u {
+        HANDLE kern;
+        LONG volatile atom;
+    } sem_t;
+#   define SEM_VALUE_MAX LONG_MAX
+
+#   if defined(__WINRT__) || _WIN32_WINNT >= 0x0600
+        typedef INIT_ONCE once_flag;
+#       define ONCE_FLAG_INIT INIT_ONCE_STATIC_INIT
+#   endif
+
+#elif defined(__PSP__) || defined(__vita__) /* psp/vita implementation ------ */
+#   include <sys/types.h>
+#   include <sys/time.h>
+#   ifdef __PSP__
+#       include <pspkerneltypes.h>
+#   else
+#       include <psp2/types.h>
+#   endif
+
+#   ifdef __STDC_NO_THREADS__
+#       ifdef __PSP__
+#           include <pspkerror.h>
+#           include <pspthreadman.h>
+#       else
+#           include <psp2/kernel/error.h>
+#           include <psp2/kernel/threadmgr.h>
+#       endif
+
+        enum {
+            thrd_success = 0,
+            thrd_nomem = SCE_KERNEL_ERROR_NO_MEMORY,
+            thrd_timedout = SCE_KERNEL_ERROR_WAIT_TIMEOUT,
+            thrd_busy = SCE_KERNEL_ERROR_TIMER_BUSY,
+            thrd_error = SCE_KERNEL_ERROR_ERROR
+        };
+
+        enum {
+            mtx_plain = 0,
+            mtx_recursive = SCE_KERNEL_MUTEX_ATTR_RECURSIVE,
+            mtx_timed = 0
+        };
+
+        struct timespec {
+            time_t tv_sec;
+            long tv_nsec;
+        };
+
+        typedef SceUID thrd_t;
+        typedef SceLwMutexWorkarea mtx_t;
+
+#       define _NO_COND_DEFINITION 1
+#       define _NO_TSS_DEFINITION 1
+#   endif
+
+    typedef SceUID sem_t;
+#   define SEM_VALUE_MAX (INT_MAX / 2)
+
+#elif defined(__unix__) || defined(__MACOSX__) /* -- pthread implementation - */
+
+#   include <errno.h>
+#   include <pthread.h>
+
+#   ifdef __STDC_NO_THREADS__
+        enum {
+            thrd_success = 0,
+            thrd_nomem = ENOMEM,
+            thrd_timedout = ETIMEDOUT,
+            thrd_busy = EBUSY,
+            thrd_error = -1
+        };
+
+        enum {
+            mtx_plain = 0,
+            mtx_recursive = 1,
+            mtx_timed = 2
+        };
+
+        typedef pthread_t thrd_t;
+        typedef pthread_mutex_t mtx_t;
+        typedef pthread_cond_t cnd_t;
+        typedef pthread_key_t tss_t;
+        typedef pthread_once_t once_flag;
+#       define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
+#   endif
+
+#   if defined(__APPLE__) && defined(__MACH__)
+#       include <mach/semaphore.h>
+#       include <sys/sysctl.h>
+
+        typedef struct {
+            semaphore_t sem;
+            int val;
+        } sem_t;
+#       define SEM_VALUE_MAX INT_MAX
+#   elif !defined(__APPLE__) && !defined(__MVS__)
+#       include <semaphore.h>
+#   endif
+
+#else /* -- unsupported operating system ------------------------------------ */
+#   error "Unsupported operating system"
+    ]]]]}[[}]]_
+#endif /* ------------------------------------------------------------------- */
+
+#if !defined(SEM_VALUE_MAX) && defined(_NO_COND_DEFINITION)
+#   error "Missing sem_t and missing cond_t definitions are mutually exclusive."
+    ]]]]}[[}]]_
+#endif
+
+#ifndef SEM_VALUE_MAX
+    typedef struct sem_s {
+        int count, wait;
+        mtx_t lock;
+        cnd_t cond;
+    } sem_t;
+#   define SEM_VALUE_MAX INT_MAX
+#   define _NO_SEM_DEFINITION 1
+#endif
+#if !defined(ONCE_FLAG_INIT)
+#   include "atomics.h"
+    typedef atomic_flag once_flag;
+#   define ONCE_FLAG_INIT ATOMIC_FLAG_INIT
+#   define _NO_CALLONCE_DEFINITION 1
+#endif
+#if defined(_NO_COND_DEFINITION) && defined(__STDC_NO_THREADS__)
+    typedef struct cnd_s {
+        mtx_t lock;
+        int wait, sigs;
+        sem_t sem_wait, sem_done;
+    } cnd_t;
+#endif
+#if defined(_NO_TSS_DEFINITION) && defined(__STDC_NO_THREADS__)
+    typedef uint_fast32_t tss_t;
+#endif
+
+/* == API =================================================================== */
+
+#ifdef __STDC_NO_THREADS__
+
+typedef int (*thrd_start_t)(void*);
+typedef void (*tss_dtor_t)(void*);
+
+THRD_API int THRD_CALL thrd_create(
+    thrd_t* thread_out,
+    thrd_start_t func,
+    void* arg
+) NO_EXCEPT;
+THRD_API int THRD_CALL thrd_equal(thrd_t a, thrd_t b) NO_EXCEPT;
+    thrd_t THRD_CALL thrd_current(void) NO_EXCEPT;
+THRD_API int THRD_CALL thrd_sleep(
+    struct timespec const* duration,
+    struct timespec* remaining
+) NO_EXCEPT;
+THRD_API void THRD_CALL thrd_yield(void) NO_EXCEPT;
+THRD_API NO_RETURN void THRD_CALL thrd_exit(int result) NO_EXCEPT;
+THRD_API int THRD_CALL thrd_detach(thrd_t thread) NO_EXCEPT;
+THRD_API int THRD_CALL thrd_join(
+    thrd_t thread,
+    int* result_out
+) NO_EXCEPT;
+
+THRD_API int THRD_CALL mtx_init(mtx_t* mutex, int type) NO_EXCEPT;
+THRD_API void THRD_CALL mtx_destroy(mtx_t* mutex) NO_EXCEPT;
+THRD_API int THRD_CALL mtx_lock(mtx_t* mutex) NO_EXCEPT;
+THRD_API int THRD_CALL mtx_unlock(mtx_t* mutex) NO_EXCEPT;
+
+THRD_API int THRD_CALL cnd_init(cnd_t* cond) NO_EXCEPT;
+THRD_API void THRD_CALL cnd_destroy(cnd_t* cond) NO_EXCEPT;
+THRD_API int THRD_CALL cnd_signal(cnd_t* cond) NO_EXCEPT;
+THRD_API int THRD_CALL cnd_broadcast(cnd_t* cond) NO_EXCEPT;
+THRD_API int THRD_CALL cnd_wait(cnd_t* cond, mtx_t* mutex) NO_EXCEPT;
+
+THRD_API int THRD_CALL tss_create(
+    tss_t* key_out,
+    tss_dtor_t destructor
+) NO_EXCEPT;
+THRD_API void* THRD_CALL tss_get(tss_t key) NO_EXCEPT;
+THRD_API int THRD_CALL tss_set(tss_t key, void* value) NO_EXCEPT;
+THRD_API void THRD_CALL tss_delete(tss_t key) NO_EXCEPT;
+
+THRD_API void THRD_CALL call_once(
+    once_flag* flag,
+    void (*func)(void)
+) NO_EXCEPT;
+
+#endif
+
+THRD_API int THRD_CALL sem_init(
+    sem_t* sem,
+    int shared,
+    unsigned value
+) NO_EXCEPT;
+THRD_API int THRD_CALL sem_destroy(sem_t* sem) NO_EXCEPT;
+THRD_API int THRD_CALL sem_post(sem_t* sem) NO_EXCEPT;
+THRD_API int THRD_CALL sem_wait(sem_t* sem) NO_EXCEPT;
+THRD_API int THRD_CALL sem_trywait(sem_t* sem) NO_EXCEPT;
+THRD_API int THRD_CALL sem_timedwait(
+    sem_t *__restrict sem,
+    struct timespec const *__restrict duration
+) NO_EXCEPT;
+THRD_API int THRD_CALL sem_reltimedwait_np(
+    sem_t *__restrict sem,
+    struct timespec const *__restrict duration
+) NO_EXCEPT;
+THRD_API int THRD_CALL sem_getvalue(
+    sem_t *__restrict sem,
+    int *__restrict result_out
+) NO_EXCEPT;
+
+THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
+
+/* == IMPLEMENTATION ======================================================== */
+
+#ifdef THREAD_IMPLEMENTATION
+
+#ifdef _NO_TSS_DEFINITION
+    static void __tss_thrd_exit(void);
+#endif
+
+#if defined(__WINRT__) || defined(_WIN32) /* -- windows implementation ------ */
 #   include <stdlib.h>
 #   include <string.h>
 #   include <time.h>
-#   include <windows.h>
-#elif defined(__unix__) || defined(__MACOSX__)
-#   include <pthread.h>
-#   include <sched.h>
-#   include <sys/types.h>
-#   include <sys/time.h>
-#   include <time.h>
-#   include <unistd.h>
-#   ifdef __APPLE__
-#       include <sys/sysctl.h>
-#   else
-#       include <semaphore.h>
-#   endif
-#   ifdef _GNU_SOURCE
-#       include <sys/sysinfo.h>
-#   endif
-#else
-#   error "Unsupported operating system"
-#endif
+#   define __TIMESPEC_TO_MS(ts) ( \
+        ((ts)->tv_sec * 1000u) + ((ts)->tv_nsec / 1000000) \
+    )
 
-#ifndef __STDC_NO_THREADS__ /* -- c11 implementation ------------------------ */
-#   define TSS_DTOR_SETUP()
-#   define _NO_SEM_DEFINITION 1
-#elif defined(__WINRT__) || defined(_WIN32) /* -- windows implementation ---- */
-
-/* ---- typedefs ------------------------------------------------------------ */
-
-    enum thrd_result {
-        thrd_success = 0,
-        thrd_nomem = ERROR_OUTOFMEMORY,
-        thrd_timedout = WAIT_TIMEOUT,
-        thrd_busy = ERROR_BUSY,
-        thrd_error = -1
-    };
-
-    enum mtx_flags {
-        mtx_plain = 0,
-        mtx_recursive = 1,
-        mtx_timed = 2
-    };
-
-    struct timespec {
-        time_t tv_sec;
-        long tv_nsec;
-    };
-
-#   if !defined(__WINRT__) || (_WIN32_WINNT < 0x602)
-        typedef union sem_u {
-            HANDLE kern;
-            LONG volatile atom;
-        } sem_t;
-#       define _NO_WIN8_SEMATOMS 1
-#   else
-        typedef struct sem_s {
-            LONG volatile atom;
-        } sem_t;
-#   endif
-#   if !defined(__WINRT__) || (_WIN32_WINNT < 0x0600)
-        typedef struct cnd_s {
-            CRITICAL_SECTION lock;
-            int wait, sigs;
-            sem_t sem_wait, sem_done;
-        } cnd_t;
-#       define _NO_VISTA_CONDVAR 1
-#   else
-        typedef CONDITION_VARIABLE cnd_t;
-#   endif
-
-    typedef HANDLE thrd_t;
-    typedef CRITICAL_SECTION mtx_t;
-    typedef DWORD tss_t;
-    typedef int (*thrd_start_t)(void*);
-    typedef void (*tss_dtor_t)(void*);
+#   ifdef __STDC_NO_THREADS__
 
     typedef struct __tss_dtor_entry {
         tss_t key;
         tss_dtor_t dtor;
     } __tss_dtor_entry;
-    extern __tss_dtor_entry __tss_dtor_table[64];
-
-/* ---- macrodefs ----------------------------------------------------------- */
-
-#   define TSS_DTOR_ITERATIONS 1
-#   define SEM_VALUE_MAX LONG_MAX
-#   define _NO_CALLONCE_DEFINITION 1
-
-#   define __TIMESPEC_TO_MS(ts) ( \
-        ((ts)->tv_sec * 1000u) + ((ts)->tv_nsec / 1000000) \
-    )
-#   define TSS_DTOR_SETUP() __tss_dtor_entry __tss_dtor_table[64]
-
-/* ---- thread API ---------------------------------------------------------- */
+    static __tss_dtor_entry __tss_dtor_table[64];
 
     static DWORD WINAPI __thrd_start(void* arg) {
         struct {
@@ -157,7 +376,7 @@
         return (DWORD)code;
     }
 
-    static_inline int thrd_create(
+    int thrd_create(
         thrd_t* thread_out,
         thrd_start_t func,
         void* arg
@@ -194,15 +413,15 @@
         }
     }
 
-    static_inline int thrd_equal(thrd_t a, thrd_t b) {
+    int thrd_equal(thrd_t a, thrd_t b) {
         return a == b;
     }
 
-    static_inline thrd_t thrd_current(void) {
+    thrd_t thrd_current(void) {
         return GetCurrentThread();
     }
 
-    static int thrd_sleep(
+    int thrd_sleep(
         struct timespec const* duration,
         struct timespec* remaining
     ) {
@@ -256,11 +475,11 @@
         }
     }
 
-    static_inline void thrd_yield(void) {
+    void thrd_yield(void) {
         SwitchToThread();
     }
 
-    NO_RETURN static_inline void thrd_exit(int result) {
+    NO_RETURN void thrd_exit(int result) {
         __tss_dtor_entry* entry;
         for (entry = __tss_dtor_table;
             entry != __tss_dtor_table + ARRAY_LENGTH(__tss_dtor_table);
@@ -276,7 +495,7 @@
         ExitThread((DWORD)result);
     }
 
-    static_inline int thrd_detach(thrd_t thread) {
+    int thrd_detach(thrd_t thread) {
         if (!thread) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -287,7 +506,7 @@
         }
     }
 
-    static_inline int thrd_join(thrd_t thread, int* result_out) {
+    int thrd_join(thrd_t thread, int* result_out) {
         if (thread) {
             DWORD result = WaitForSingleObject(thread, INFINITE);
             if (result != WAIT_OBJECT_0) {
@@ -309,9 +528,7 @@
         }
     }
 
-/* ---- mutex API ----------------------------------------------------------- */
-
-    static_inline int mtx_init(mtx_t* mutex, int type) {
+    int mtx_init(mtx_t* mutex, int type) {
         (void)type;
 
         if (!mutex) {
@@ -325,7 +542,7 @@
         }
     }
 
-    static_inline int mtx_lock(mtx_t* mutex) {
+    int mtx_lock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -335,7 +552,7 @@
         }
     }
 
-    static_inline int mtx_trylock(mtx_t* mutex) {
+    int mtx_trylock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -344,7 +561,7 @@
         }
     }
 
-    static_inline int mtx_timedlock(
+    int mtx_timedlock(
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
     ) {
@@ -377,7 +594,7 @@
         }
     }
 
-    static_inline int mtx_unlock(mtx_t* mutex) {
+    int mtx_unlock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -387,274 +604,10 @@
         }
     }
 
-    static_inline void mtx_destroy(mtx_t* mutex) {
+    void mtx_destroy(mtx_t* mutex) {
         if (mutex)
             DeleteCriticalSection(mutex);
     }
-
-/* ---- semaphore API ------------------------------------------------------- */
-
-#   ifdef _NO_WIN8_SEMATOMS
-    typedef BOOL (WINAPI* PFN_WaitOnAddress)(
-        void volatile* addr,
-        void* cmpaddr,
-        SIZE_T addr_size,
-        DWORD millisecs
-    );
-    static PFN_WaitOnAddress WaitOnAddress;
-
-    typedef void (WINAPI* PFN_WakeByAddressSingle)(
-        void* addr
-    );
-    static PFN_WakeByAddressSingle WakeByAddressSingle;
-#   endif
-
-    static_inline int sem_init(sem_t* sem, int shared, unsigned int value) {
-        if (!sem || value > SEM_VALUE_MAX) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_error;
-        } else
-#   ifdef _NO_WIN8_SEMATOMS
-        if (!WaitOnAddress) {
-            HMODULE synch120 = GetModuleHandleA(
-                "api-ms-core-synch-l1-2.0.dll"
-            );
-
-            if (synch120) {
-                WaitOnAddress = __extension__
-                    (PFN_WaitOnAddress)GetProcAddress(
-                        synch120, "WaitOnAddress"
-                );
-                WakeByAddressSingle = __extension__
-                    (PFN_WakeByAddressSingle)GetProcAddress(
-                        synch120, "WakeByAddressSingle"
-                );
-
-                if (!WaitOnAddress || !WakeByAddressSingle) {
-                    WaitOnAddress = __extension__ NULL;
-                    WakeByAddressSingle = __extension__ NULL;
-                }
-            }
-        }
-
-        if (!WaitOnAddress) {
-            sem->kern = CreateSemaphoreW(
-                NULL, (LONG)value, SEM_VALUE_MAX, NULL
-            );
-            return sem->kern ? thrd_success : -1;
-        } else
-#   endif
-        {
-            sem->atom = (LONG)value;
-            return thrd_success;
-        }
-    }
-
-    static_inline int sem_destroy(sem_t* sem) {
-        if (!sem) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_error;
-        } else
-#   ifdef _NO_WIN8_SEMATOMS
-        if (!WaitOnAddress && !CloseHandle(sem)) {
-            return thrd_error;
-        } else
-#   endif
-        {
-            return thrd_success;
-        }
-    }
-
-    static_inline int sem_trywait(sem_t* sem) {
-        if (!sem) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_success;
-        } else
-#   ifdef _NO_WIN8_SEMATOMS
-        if (!WaitOnAddress) {
-            return WaitForSingleObject(
-                sem->kern, 0
-            ) == WAIT_OBJECT_0 ? thrd_success : thrd_error;
-        } else
-#   endif
-        {
-            LONG c = sem->atom;
-            return (
-                !c ||
-                InterlockedCompareExchange(
-                    &sem->atom, c - 1, c
-            )) ? thrd_success : thrd_error;
-        }
-    }
-
-    static_inline int sem_reltimedwait_np(
-        sem_t *__restrict sem,
-        struct timespec const *__restrict duration
-    ) {
-        if (!sem || (duration &&
-                duration->tv_sec < 0 ||
-                duration->tv_nsec < 0 ||
-                duration->tv_nsec >= 1000000000
-        )) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_success;
-        } else {
-            DWORD msecs = duration ? __TIMESPEC_TO_MS(duration) : INFINITE;
-
-#   ifdef _NO_WIN8_SEMATOMS
-            if (!WaitOnAddress) {
-                return WaitForSingleObject(
-                    sem->kern, msecs
-                ) == WAIT_OBJECT_0 ? thrd_success : thrd_error;
-            } else
-#   endif
-            {
-                LONG c;
-
-                do {
-                    c = sem->atom;
-                    while (!c) {
-                        if (!WaitOnAddress(
-                            &sem->atom, &c, sizeof sem->atom, msecs
-                        )) {
-                            return GetLastError() == ERROR_TIMEDOUT ?
-                                thrd_timedout :
-                                thrd_error;
-                        } else {
-                            c = sem->atom;
-                        }
-                    }
-                } while (InterlockedCompareExchange(&sem->atom, c - 1, c) != c);
-                return thrd_success;
-            }
-        }
-    }
-
-    static_inline int sem_timedwait(
-        sem_t *__restrict sem,
-        struct timespec const *__restrict duration
-    ) {
-        union {
-            uint64_t nsx100;
-            FILETIME filetime;
-        } current_time;
-        uint64_t duration_filetime;
-        struct timespec relative_time;
-
-        if (!duration ||
-            duration->tv_sec < 0 ||
-            duration->tv_nsec < 0 ||
-            duration->tv_nsec >= 1000000000
-        ) {
-            errno = EINVAL;
-            return thrd_error;
-        }
-
-        GetSystemTimeAsFileTime(&current_time.filetime);
-        duration_filetime = (UINT64_C(11644473600) + duration->tv_sec)
-            * UINT64_C(10000000)
-            + duration->tv_nsec / 100;
-        duration_filetime -= current_time.filetime;
-
-        relative_time.tv_sec = (time_t)(duration_filetime / UINT64_C(10000000));
-        relative_time.tv_nsec = (time_t)(duration_filetime % UINT64_C(10000000)) * 100;
-        return sem_reltimedwait_np(sem, &relative_time);
-    }
-
-    static_inline int sem_wait(sem_t* sem) {
-        return sem_reltimedwait_np(sem, NULL);
-    }
-
-    static_inline int sem_post(sem_t* sem) {
-        if (!sem) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_error;
-        } else
-#   ifdef _NO_WIN8_SEMATOMS
-        if (!WakeByAddressSingle) {
-            return ReleaseSemaphore(sem->kern, 1, NULL) ?
-                thrd_success :
-                thrd_error
-            ;
-        } else
-#   endif
-        if (sem->atom == SEM_VALUE_MAX) {
-            SetLastError(ERROR_ARITHMETIC_OVERFLOW);
-            return thrd_error;
-        } else {
-            InterlockedIncrement(&sem->atom);
-            WakeByAddressSingle(&sem->atom);
-            return (GetLastError() == NO_ERROR) ? thrd_success : thrd_error;
-        }
-    }
-
-    static_inline int sem_getvalue(
-        sem_t *__restrict sem,
-        int *__restrict result_out
-    ) {
-        typedef DWORD (NTAPI* PFN_NtQuerySemaphore)(
-            HANDLE sem,
-            DWORD info_class,
-            PVOID sem_info,
-            ULONG sem_info_size,
-            PULONG return_length
-        );
-        typedef DWORD (NTAPI* PFN_RtlNtStatusToDosError)(
-            DWORD ntstatus
-        );
-        typedef struct _SEMAPHORE_BASIC_INFORMATION {
-            ULONG current, max;
-        } SEMAPHORE_BASIC_INFORMATION;
-
-        if (!sem) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_error;
-        } else
-#   ifdef _NO_WIN8_SEMATOMS
-        if (!WaitOnAddress) {
-            static PFN_NtQuerySemaphore NtQuerySemaphore;
-            static PFN_RtlNtStatusToDosError RtlNtStatusToDosError;
-
-            SEMAPHORE_BASIC_INFORMATION basic_info;
-            LONG status;
-
-            if (!RtlNtStatusToDosError) {
-                HMODULE ntdll = GetModuleHandleA("ntdll.dll");
-                if (!ntdll)
-                    return thrd_error;
-
-                RtlNtStatusToDosError = __extension__
-                    (PFN_RtlNtStatusToDosError)GetProcAddress(
-                        ntdll, "RtlNtStatusToDosError"
-                );
-                NtQuerySemaphore = __extension__
-                    (PFN_NtQuerySemaphore)GetProcAddress(
-                        ntdll, "NtQuerySemaphore"
-                );
-
-                if (!NtQuerySemaphore || !RtlNtStatusToDosError)
-                    return thrd_error;
-            }
-
-            if ((status = (*NtQuerySemaphore)(
-                    sem, 0, &basic_info, sizeof basic_info, NULL
-            )) == ERROR_SUCCESS) {
-                if (result_out)
-                    *result_out = (int)basic_info.current;
-                return thrd_success;
-            } else {
-                SetLastError((*RtlNtStatusToDosError)(status));
-                return thrd_error;
-            }
-        } else
-#   endif
-        {
-            *result_out = (int)sem->atom;
-            return thrd_success;
-        }
-    }
-
-/* ---- condition variable API ---------------------------------------------- */
 
     typedef void (WINAPI* PFN_InitializeConditionVariable)(
         cnd_t* cond
@@ -678,7 +631,7 @@
     );
     static PFN_SleepConditionVariableCS SleepConditionVariableCS;
 
-    static_inline int cnd_init(cnd_t* cond) {
+    int cnd_init(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -744,7 +697,7 @@
         }
     }
 
-    static_inline int cnd_signal(cnd_t* cond) {
+    int cnd_signal(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -770,7 +723,7 @@
         return thrd_success;
     }
 
-    static_inline int cnd_broadcast(cnd_t* cond) {
+    int cnd_broadcast(cnd_t* cond) {
         if (!cond) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
@@ -804,7 +757,7 @@
         return thrd_success;
     }
 
-    static_inline int cnd_timedwait(
+    int cnd_timedwait(
         cnd_t *__restrict cond,
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
@@ -854,11 +807,11 @@
         }
     }
 
-    static_inline int cnd_wait(cnd_t* cond, mtx_t* mutex) {
+    int cnd_wait(cnd_t* cond, mtx_t* mutex) {
         return cnd_timedwait(cond, mutex, NULL);
     }
 
-    static_inline void cnd_destroy(cnd_t* cond) {
+    void cnd_destroy(cnd_t* cond) {
 #   ifdef _NO_VISTA_CONDVAR
         if (!WakeConditionVariable && cond) {
             sem_destroy(&cond->sem_done);
@@ -870,9 +823,7 @@
 #   endif
     }
 
-/* ---- thread-local storage API -------------------------------------------- */
-
-    static_inline int tss_create(tss_t* key_out, tss_dtor_t destructor) {
+    int tss_create(tss_t* key_out, tss_dtor_t destructor) {
         __tss_dtor_entry* entry;
         tss_t key;
 
@@ -884,8 +835,8 @@
         } else if (destructor) {
             __tss_dtor_entry* entry;
             for (entry = __tss_dtor_table;
-                entry != __tss_dtor_table + ARRAY_LENGTH(__tss_dtor_table) &&
-                    !entry->dtor;
+                entry != __tss_dtor_table + ARRAY_LENGTH(__tss_dtor_table)
+                    && !entry->dtor;
                 entry++
             );
 
@@ -901,64 +852,630 @@
         return thrd_success;
     }
 
-    static_inline void* tss_get(tss_t key) {
+    void* tss_get(tss_t key) {
         return TlsGetValue(key);
     }
 
-    static_inline int tss_set(tss_t key, void* value) {
+    int tss_set(tss_t key, void* value) {
         return TlsSetValue(key, value) ? thrd_success : thrd_error;
     }
 
-    static_inline void tss_delete(tss_t key) {
+    void tss_delete(tss_t key) {
         TlsFree(key);
     }
 
-/* ---- cleanup ------------------------------------------------------------- */
+#   ifndef _NO_CALLONCE_DEFINITION
 
-#   undef __TIMESPEC_TO_MS
-#   ifdef _NO_VISTA_CONDVAR
-#       undef _NO_VISTA_CONDVAR
+    static BOOL CALLBACK __call_once_enter(
+        PINIT_ONCE flag,
+        PVOID param,
+        PVOID* ctx
+    ) {
+        void (*func)(void) = __extension__((void(*)(void)))(param);
+        (void)flag; (void)ctx;
+
+        func();
+        return TRUE;
+    }
+
+    void call_once(once_flag* flag, void (*func)(void)) {
+        InitOnceExecuteOnce(flag, __call_once_enter, NULL, NULL);
+    }
+
 #   endif
+
+#   endif
+
 #   ifdef _NO_WIN8_SEMATOMS
-#       undef _NO_WIN8_SEMATOMS
+    typedef BOOL (WINAPI* PFN_WaitOnAddress)(
+        void volatile* addr,
+        void* cmpaddr,
+        SIZE_T addr_size,
+        DWORD millisecs
+    );
+    static PFN_WaitOnAddress WaitOnAddress;
+
+    typedef void (WINAPI* PFN_WakeByAddressSingle)(
+        void* addr
+    );
+    static PFN_WakeByAddressSingle WakeByAddressSingle;
 #   endif
+
+    int sem_init(sem_t* sem, int shared, unsigned int value) {
+        if (!sem || value > SEM_VALUE_MAX) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        } else
+#   ifdef _NO_WIN8_SEMATOMS
+        if (!WaitOnAddress) {
+            HMODULE synch120 = GetModuleHandleA(
+                "api-ms-core-synch-l1-2.0.dll"
+            );
+
+            if (synch120) {
+                WaitOnAddress = __extension__
+                    (PFN_WaitOnAddress)GetProcAddress(
+                        synch120, "WaitOnAddress"
+                );
+                WakeByAddressSingle = __extension__
+                    (PFN_WakeByAddressSingle)GetProcAddress(
+                        synch120, "WakeByAddressSingle"
+                );
+
+                if (!WaitOnAddress || !WakeByAddressSingle) {
+                    WaitOnAddress = __extension__ NULL;
+                    WakeByAddressSingle = __extension__ NULL;
+                }
+            }
+        }
+
+        if (!WaitOnAddress) {
+            sem->kern = CreateSemaphoreW(
+                NULL, (LONG)value, SEM_VALUE_MAX, NULL
+            );
+            return sem->kern ? thrd_success : -1;
+        } else
+#   endif
+        {
+            sem->atom = (LONG)value;
+            return thrd_success;
+        }
+    }
+
+    int sem_destroy(sem_t* sem) {
+        if (!sem) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        } else
+#   ifdef _NO_WIN8_SEMATOMS
+        if (!WaitOnAddress && !CloseHandle(sem)) {
+            return thrd_error;
+        } else
+#   endif
+        {
+            return thrd_success;
+        }
+    }
+
+    int sem_trywait(sem_t* sem) {
+        if (!sem) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_success;
+        } else
+#   ifdef _NO_WIN8_SEMATOMS
+        if (!WaitOnAddress) {
+            return WaitForSingleObject(
+                sem->kern, 0
+            ) == WAIT_OBJECT_0 ? thrd_success : thrd_error;
+        } else
+#   endif
+        {
+            LONG c = sem->atom;
+            return (
+                !c ||
+                InterlockedCompareExchange(
+                    &sem->atom, c - 1, c
+            )) ? thrd_success : thrd_error;
+        }
+    }
+
+    int sem_reltimedwait_np(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) {
+        if (!sem || (duration &&
+                duration->tv_sec < 0 ||
+                duration->tv_nsec < 0 ||
+                duration->tv_nsec >= 1000000000
+        )) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_success;
+        } else {
+            DWORD msecs = duration ? __TIMESPEC_TO_MS(duration) : INFINITE;
+
+#   ifdef _NO_WIN8_SEMATOMS
+            if (!WaitOnAddress) {
+                return WaitForSingleObject(
+                    sem->kern, msecs
+                ) == WAIT_OBJECT_0 ? thrd_success : thrd_error;
+            } else
+#   endif
+            {
+                LONG c;
+
+                do {
+                    c = sem->atom;
+                    while (!c) {
+                        if (!WaitOnAddress(
+                            &sem->atom, &c, sizeof sem->atom, msecs
+                        )) {
+                            return GetLastError() == ERROR_TIMEDOUT ?
+                                thrd_timedout :
+                                thrd_error;
+                        } else {
+                            c = sem->atom;
+                        }
+                    }
+                } while (InterlockedCompareExchange(&sem->atom, c - 1, c) != c);
+                return thrd_success;
+            }
+        }
+    }
+
+    int sem_timedwait(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) {
+        union {
+            uint64_t nsx100;
+            FILETIME filetime;
+        } current_time;
+        uint64_t duration_filetime;
+        struct timespec relative_time;
+
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            errno = EINVAL;
+            return thrd_error;
+        }
+
+        GetSystemTimeAsFileTime(&current_time.filetime);
+        duration_filetime = (UINT64_C(11644473600) + duration->tv_sec)
+            * UINT64_C(10000000)
+            + duration->tv_nsec / 100;
+        duration_filetime -= current_time.filetime;
+
+        relative_time.tv_sec = (time_t)(duration_filetime / UINT64_C(10000000));
+        relative_time.tv_nsec = (time_t)(duration_filetime % UINT64_C(10000000)) * 100;
+        return sem_reltimedwait_np(sem, &relative_time);
+    }
+
+    int sem_wait(sem_t* sem) {
+        return sem_reltimedwait_np(sem, NULL);
+    }
+
+    int sem_post(sem_t* sem) {
+        if (!sem) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        } else
+#   ifdef _NO_WIN8_SEMATOMS
+        if (!WakeByAddressSingle) {
+            return ReleaseSemaphore(sem->kern, 1, NULL) ?
+                thrd_success :
+                thrd_error
+            ;
+        } else
+#   endif
+        if (sem->atom == SEM_VALUE_MAX) {
+            SetLastError(ERROR_ARITHMETIC_OVERFLOW);
+            return thrd_error;
+        } else {
+            InterlockedIncrement(&sem->atom);
+            WakeByAddressSingle(&sem->atom);
+            return (GetLastError() == NO_ERROR) ? thrd_success : thrd_error;
+        }
+    }
+
+    int sem_getvalue(
+        sem_t *__restrict sem,
+        int *__restrict result_out
+    ) {
+        typedef DWORD (NTAPI* PFN_NtQuerySemaphore)(
+            HANDLE sem,
+            DWORD info_class,
+            PVOID sem_info,
+            ULONG sem_info_size,
+            PULONG return_length
+        );
+        typedef DWORD (NTAPI* PFN_RtlNtStatusToDosError)(
+            DWORD ntstatus
+        );
+        typedef struct _SEMAPHORE_BASIC_INFORMATION {
+            ULONG current, max;
+        } SEMAPHORE_BASIC_INFORMATION;
+
+        if (!sem) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        } else
+#   ifdef _NO_WIN8_SEMATOMS
+        if (!WaitOnAddress) {
+            static PFN_NtQuerySemaphore NtQuerySemaphore;
+            static PFN_RtlNtStatusToDosError RtlNtStatusToDosError;
+
+            SEMAPHORE_BASIC_INFORMATION basic_info;
+            LONG status;
+
+            if (!RtlNtStatusToDosError) {
+                HMODULE ntdll = GetModuleHandleA("ntdll.dll");
+                if (!ntdll)
+                    return thrd_error;
+
+                RtlNtStatusToDosError = __extension__
+                    (PFN_RtlNtStatusToDosError)GetProcAddress(
+                        ntdll, "RtlNtStatusToDosError"
+                );
+                NtQuerySemaphore = __extension__
+                    (PFN_NtQuerySemaphore)GetProcAddress(
+                        ntdll, "NtQuerySemaphore"
+                );
+
+                if (!NtQuerySemaphore || !RtlNtStatusToDosError)
+                    return thrd_error;
+            }
+
+            if ((status = (*NtQuerySemaphore)(
+                    sem, 0, &basic_info, sizeof basic_info, NULL
+            )) == ERROR_SUCCESS) {
+                if (result_out)
+                    *result_out = (int)basic_info.current;
+                return thrd_success;
+            } else {
+                SetLastError((*RtlNtStatusToDosError)(status));
+                return thrd_error;
+            }
+        } else
+#   endif
+        {
+            *result_out = (int)sem->atom;
+            return thrd_success;
+        }
+    }
+
+#elif defined(__PSP__) || defined(__vita__) /* psp/vita implementation ------ */
+#   if defined(__PSP__)
+#       include <stdlib.h>
+#   endif
+#   ifndef SCE_KERNEL_ERROR_MUTEX_FAILED_TO_OWN
+#       define SCE_KERNEL_ERROR_MUTEX_FAILED_TO_OWN 0x80028145
+#   endif
+#   ifndef SCE_KERNEL_MUTEX_ATTR_RECURSIVE
+#       define SCE_KERNEL_MUTEX_ATTR_RECURSIVE 0x0200u
+#   endif
+
+#   ifdef __STDC_NO_THREADS__
+
+    typedef struct {
+        thrd_start_t f;
+        void* a;
+    } __thrd_entry_t;
+
+    static int __thrd_entry(SceSize size, void* argp) {
+        __thrd_entry_t args;
+        (void)size;
+
+        args = *(__thrd_entry_t*)argp;
+        free(argp);
+        return (*args->f)(args->a);
+    }
+
+    int thrd_create(
+        thrd_t* thread_out,
+        thrd_start_t func,
+        void* arg
+    ) {
+        SceKernelThreadInfo thrd_status;
+        thrd_t thrd;
+        __thrd_entry_t* args;
+#   ifdef __vita__
+#       define priority 0
+#   else
+        int priority;
+#       define VITA_THREAD_STACK_SIZE_DEFAULT 0x8000
+#   endif
+        char thrd_name[] = "stdc.thrd";
+
+        if (!thread_out || !func) {
+            return thrd_error;
+        } else if (!(args = (__thrd_entry_t*)malloc(sizeof *args))) {
+            return thrd_nomem;
+        }
+
+#   ifdef __PSP__
+        priority = 32;
+        if (!sceKernelReferThreadStatus(sceKernelGetThreadId(), &status)) {
+            priority = status.currentPriority;
+        }
+#   endif
+
+        thrd_name[MAX(32, sizeof thrd_name) - 1] = '\0';
+        if ((thrd = sceKernelCreateThread(
+            thrd_name,
+            __thrd_entry,
+            priority,
+            VITA_THREAD_STACK_SIZE_DEFAULT,
+#       ifdef __PSP__
+            PSP_THREAD_ATTR_VFPU,
+#       else
+#           undef priority
+            0, 0,
+#       endif
+            NULL
+        )) < 0) {
+            free(args);
+            return thrd_error;
+        }
+
+        args->f = func;
+        args->a = arg;
+        sceKernelStartThread(
+            thrd,
+            (SceSize)(sizeof *args / sizeof(SceUInt)), (void*)args
+        );
+
+        *thread_out = thrd;
+        return thrd_success;
+    }
+
+    int thrd_equal(thrd_t a, thrd_t b) {
+        return a == b;
+    }
+
+    thrd_t thrd_current(void) {
+        return sceKernelGetThreadId();
+    }
+
+    int thrd_sleep(
+        struct timespec const* duration,
+        struct timespec* remaining
+    ) {
+        const SceUInt max_delay = 0xfffffffful / 1000;
+        struct timeval start, end;
+        SceUInt delay;
+
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            return thrd_error;
+        }
+
+        delay = duration->tv_sec * 1000000;
+        if (delay < duration->tv_sec || delay > max_delay) {
+            delay = max_delay;
+        } else if (delay + duration->tv_nsec / 1000 > max_delay) {
+            delay = max_delay;
+        } else {
+            delay += duration->tv_nsec / 1000;
+        }
+
+        if (remaining) {
+            gettimeofday(&start, NULL);
+        }
+
+        sceKernelDelayThreadCB(delay);
+        if (remaining) {
+            gettimeofday(&end, NULL);
+            remaining->tv_sec = end.tv_sec - start.tv_sec;
+            remaining->tv_nsec = (end.tv_usec - start.tv_usec) * 1000;
+        }
+
+        return (result == -1 && errno != EINTR) ? -errno : result;
+    }
+
+    void thrd_yield(void) {
+        sceKernelDelayThreadCB(0);
+    }
+
+    void thrd_exit(int result) {
+        __tss_thrd_exit();
+        sceKernelExitThread(result);
+    }
+
+    int thrd_detach(thrd_t thread) {
+        return sceKernelDeleteThread(thread) < 0 ? thrd_error : thrd_success;
+    }
+
+    int thrd_join(thrd_t thread, int* result_out) {
+        if (sceKernelWaitThreadEnd(thread, NULL) < 0) {
+            return thrd_error;
+        } else if (result_out) {
+            *result_out = sceKernelGetThreadExitStatus(thread);
+        }
+
+        sceKernelDeleteThread(thread);
+        return thrd_success;
+    }
+
+    int mtx_init(mtx_t* mutex, int type) {
+        if (!mutex) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        }
+
+        return sceKernelCreateLwMutex(
+            &mutex,
+            "stdc.mtx",
+            type,
+            0, NULL
+        ) < 0 ? thrd_error : thrd_success;
+    }
+
+    int mtx_lock(mtx_t* mutex) {
+        return (!mutex || sceKernelLockLwMutex(mutex, 1, NULL) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
+
+    int mtx_trylock(mtx_t* mutex) {
+        if (!mutex) {
+            return thrd_error;
+        } else switch (sceKernelTryLockLwMutex(mutex, 1)) {
+        case SCE_KERNEL_OK:
+            return thrd_success;
+        case SCE_KERNEL_ERROR_MUTEX_FAILED_TO_OWN:
+        case SCE_KERNEL_ERROR_WAIT_TIMEOUT:
+            return thrd_timedout;
+        default:
+            return thrd_error;
+        }
+    }
+
+    int mtx_timedlock(
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        SceUInt timeout;
+
+        if (!mutex ||
+            !duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            return thrd_error;
+        }
+
+        timeout = ((duration->tv_sec * 1000000) + (duration->tv_nsec / 1000));
+        switch (sceKernelLockLwMutex(mutex, 1, &timeout)) {
+        case SCE_KERNEL_ERROR_OK:
+            return thrd_success;
+        case SCE_KERNEL_ERROR_WAIT_TIMEOUT:
+            return thrd_timedout;
+        default:
+            return thrd_error;
+        }
+    }
+
+    int mtx_unlock(mtx_t* mutex) {
+        return (!mutex || sceKernelUnlockLwMutex(mutex, 1) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
+
+    void mtx_destroy(mtx_t* mutex) {
+        if (mutex)
+            sceKernelDeleteLwMutex(mutex);
+    }
+
+#   endif
+
+    int sem_init(sem_t* sem, int shared, unsigned int value) {
+        sem_t result;
+        (void)shared;
+
+        if (!sem || value > SEM_VALUE_MAX) {
+            errno = EINVAL;
+            return thrd_error;
+        }
+
+        if ((result = sceKernelCreateSema(
+                "stdc.sem", 0, value, SEM_VALUE_MAX, NULL
+        )) < 0) {
+            return thrd_error;
+        }
+
+        *sem = result;
+        return thrd_success;
+    }
+
+    int sem_destroy(sem_t* sem) {
+        return (!sem || sceKernelDeleteSema(*sem) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
+
+    int sem_getvalue(
+        sem_t *__restrict sem,
+        int *__restrict result_out
+    ) {
+        SceKernelSemaInfo info;
+#   ifdef __vita__
+#       define sceKernelReferSemaStatus sceKernelGetSemaInfo
+        info.size = sizeof info;
+#   endif
+
+        if (!sem || (result = sceKernelReferSemaStatus(*sem, &info)) < 0) {
+            return thrd_error;
+        }
+
+        if (result_out) result_out = info.currentCount;
+        return thrd_success;
+
+#   ifdef sceKernelReferSemaStatus
+#       undef sceKernelReferSemaStatus
+#   endif
+    }
+
+    int sem_timedwait(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) {
+        int timeout;
+
+        if (!sem ||
+            !duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            return thrd_error;
+        }
+
+        timeout = ((duration->tv_sec * 1000000) + (duration->tv_nsec / 1000));
+        switch (sceKernelWaitSema(*sem, 1, &timeout)) {
+        case SCE_KERNEL_ERROR_OK:
+            return thrd_success;
+        case SCE_KERNEL_ERROR_WAIT_TIMEOUT:
+            return thrd_timedout;
+        default:
+            return thrd_error;
+        }
+    }
+
+    int sem_wait(sem_t* sem) {
+        return (!sem || sceKernelWaitSema(*sem, 1, NULL) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
+
+    int sem_trywait(sem_t* sem) {
+        return (!sem || sceKernelPollSema(*sem, 1) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
+
+    int sem_post(sem_t* sem) {
+        return (!sem || sceKernelSignalSema(*sem, 1) < 0) ?
+            thrd_error :
+            thrd_success;
+    }
 
 #else /* -- pthread implementation ------------------------------------------ */
-#   include <errno.h>
+#   include <sched.h>
+#   include <sys/types.h>
+#   include <sys/time.h>
+#   include <time.h>
+#   include <unistd.h>
 
-/* ---- typedefs ------------------------------------------------------------ */
+#   ifdef __STDC_NO_THREADS__
 
-    enum {
-        thrd_success = 0,
-        thrd_nomem = ENOMEM,
-        thrd_timedout = ETIMEDOUT,
-        thrd_busy = EBUSY,
-        thrd_error = -1
-    };
-
-    enum {
-        mtx_plain = 0,
-        mtx_recursive = 1,
-        mtx_timed = 2
-    };
-
-    typedef pthread_t thrd_t;
-    typedef pthread_mutex_t mtx_t;
-    typedef pthread_cond_t cnd_t;
-    typedef pthread_key_t tss_t;
-    typedef pthread_once_t once_flag;
-    typedef int (*thrd_start_t)(void*);
-    typedef void (*tss_dtor_t)(void*);
-
-/* ---- macrodefs ----------------------------------------------------------- */
-
-#   define ONCE_FLAG_INIT PTHREAD_ONCE_INIT
-#   define TSS_DTOR_ITERATIONS PTHREAD_DESTRUCTOR_ITERATIONS
-#   define TSS_DTOR_SETUP()
-
-/* ---- thread API ---------------------------------------------------------- */
-
-    static_inline int thrd_create(
+    int thrd_create(
         thrd_t* thread_out,
         thrd_start_t func,
         void* arg
@@ -971,15 +1488,15 @@
         ) ? thrd_error : thrd_success;
     }
 
-    static_inline int thrd_equal(thrd_t a, thrd_t b) {
+    int thrd_equal(thrd_t a, thrd_t b) {
         return pthread_equal(a, b);
     }
 
-    static_inline thrd_t thrd_current(void) {
+    thrd_t thrd_current(void) {
         return pthread_self();
     }
 
-    static_inline int thrd_sleep(
+    int thrd_sleep(
         struct timespec const* duration,
         struct timespec* remaining
     ) {
@@ -987,19 +1504,19 @@
         return (result == -1 && errno != EINTR) ? errno : result;
     }
 
-    static_inline void thrd_yield(void) {
+    void thrd_yield(void) {
         sched_yield();
     }
 
-    NO_RETURN static_inline void thrd_exit(int result) {
+    void thrd_exit(int result) {
         pthread_exit((void*)(intptr_t)result);
     }
 
-    static_inline int thrd_detach(thrd_t thread) {
+    int thrd_detach(thrd_t thread) {
         return pthread_detach(thread) ? thrd_error : thrd_success;
     }
 
-    static_inline int thrd_join(thrd_t thread, int* result_out) {
+    int thrd_join(thrd_t thread, int* result_out) {
         void* result;
 
         if (pthread_join(thread, &result) != 0) {
@@ -1011,9 +1528,7 @@
         return thrd_success;
     }
 
-/* ---- mutex API ----------------------------------------------------------- */
-
-    static_inline int mtx_init(mtx_t* mutex, int type) {
+    int mtx_init(mtx_t* mutex, int type) {
         int result;
         pthread_mutexattr_t attr;
 
@@ -1042,11 +1557,11 @@
         return result;
     }
 
-    static_inline int mtx_lock(mtx_t* mutex) {
+    int mtx_lock(mtx_t* mutex) {
         return pthread_mutex_lock(mutex) ? thrd_error : thrd_success;
     }
 
-    static_inline int mtx_timedlock(
+    int mtx_timedlock(
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
     ) {
@@ -1090,7 +1605,7 @@
 #   endif
     }
 
-    static_inline int mtx_trylock(mtx_t* mutex) {
+    int mtx_trylock(mtx_t* mutex) {
         switch (pthread_mutex_trylock(mutex)) {
         case EBUSY:
             return thrd_busy;
@@ -1101,33 +1616,31 @@
         }
     }
 
-    static_inline int mtx_unlock(mtx_t* mutex) {
+    int mtx_unlock(mtx_t* mutex) {
         return pthread_mutex_unlock(mutex) ? thrd_error : thrd_success;
     }
 
-    static_inline void mtx_destroy(mtx_t* mutex) {
+    void mtx_destroy(mtx_t* mutex) {
         pthread_mutex_destroy(mutex);
     }
 
-/* ---- condition variable API ---------------------------------------------- */
-
-    static_inline int cnd_init(cnd_t* cond) {
+    int cnd_init(cnd_t* cond) {
         return pthread_cond_init(cond, NULL) ? thrd_error : thrd_success;
     }
 
-    static_inline int cnd_signal(cnd_t* cond) {
+    int cnd_signal(cnd_t* cond) {
         return pthread_cond_signal(cond) ? thrd_error : thrd_success;
     }
 
-    static_inline int cnd_broadcast(cnd_t* cond) {
+    int cnd_broadcast(cnd_t* cond) {
         return pthread_cond_broadcast(cond) ? thrd_error : thrd_success;
     }
 
-    static_inline int cnd_wait(cnd_t* cond, mtx_t* mutex) {
+    int cnd_wait(cnd_t* cond, mtx_t* mutex) {
         return pthread_cond_wait(cond, mutex) ? thrd_error : thrd_success;
     }
 
-    static_inline int cnd_timedwait(
+    int cnd_timedwait(
         cnd_t *__restrict cond,
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
@@ -1181,11 +1694,31 @@
         }
     }
 
-    static_inline void cnd_destroy(cnd_t* cond) {
+    void cnd_destroy(cnd_t* cond) {
         pthread_cond_destroy(cond);
     }
 
-/* ---- semaphore API ------------------------------------------------------- */
+    int tss_create(tss_t* key, tss_dtor_t destructor) {
+        return pthread_key_create(key, destructor) ? thrd_error : thrd_success;
+    }
+
+    void* tss_get(tss_t key) {
+        return pthread_getspecific(key);
+    }
+
+    int tss_set(tss_t key, void* value) {
+        return pthread_setspecific(key, value) ? thrd_error : thrd_success;
+    }
+
+    void tss_delete(tss_t key) {
+        pthread_key_delete(key);
+    }
+
+    void call_once(once_flag* flag, void (*func)(void)) {
+        pthread_once(flag, func);
+    }
+
+#   endif
 
 #   if defined(__APPLE__) && defined(__MACH__)
 #       include <mach/mach_init.h>
@@ -1201,7 +1734,7 @@
             int val;
         } sem_t;
 
-        static_inline int sem_init(
+        int sem_init(
             sem_t* sem, int shared, unsigned int value
         ) {
             (void)shared;
@@ -1221,13 +1754,13 @@
             }
         }
 
-        static_inline int sem_destroy(sem_t* sem) {
+        int sem_destroy(sem_t* sem) {
             return (!sem || semaphore_destroy(mach_task_self(), sem->sem)) ?
                 thrd_error :
                 thrd_success;
         }
 
-        static_inline int sem_getvalue(
+        int sem_getvalue(
             sem_t *__restrict sem,
             int *__restrict val
         ) {
@@ -1240,7 +1773,7 @@
             return thrd_error;
         }
 
-        static_inline int sem_trywait(sem_t* sem) {
+        int sem_trywait(sem_t* sem) {
             mach_timespec_t ts = { 0, 0 };
 
             if (!sem) {
@@ -1260,7 +1793,7 @@
             }
         }
 
-        static_inline int sem_reltimedwait_np(
+        int sem_reltimedwait_np(
             sem_t *__restrict sem,
             struct timespec const *__restrict duration
         ) {
@@ -1291,7 +1824,7 @@
             }
         }
 
-        static_inline int sem_timedwait(
+        int sem_timedwait(
             sem_t *__restrict sem,
             struct timespec const *__restrict duration
         ) {
@@ -1316,7 +1849,7 @@
             return sem_reltimedwait_np(sem, &relative_time);
         }
 
-        static_inline int sem_wait(sem_t* sem) {
+        int sem_wait(sem_t* sem) {
             int err;
 
             if (!sem) {
@@ -1337,7 +1870,7 @@
             return thrd_success;
         }
 
-        static_inline int sem_post(sem_t* sem) {
+        int sem_post(sem_t* sem) {
             if (!sem || semaphore_signal(sem->sem)) {
                 errno = EINVAL;
                 return thrd_error;
@@ -1347,9 +1880,8 @@
             return thrd_success;
         }
 #   elif defined(__APPLE__) || defined(__MVS__)
-#       define _NO_SEM_DEFINITION 1
 #   elif !defined(__SOLARIS__)
-        static_inline int sem_reltimedwait_np(
+        int sem_reltimedwait_np(
             sem_t *__restrict sem,
             struct timespec const *__restrict duration
         ) {
@@ -1373,44 +1905,118 @@
         }
 #   endif
 
-/* ---- thread-local storage API -------------------------------------------- */
+#endif /* ------------------------------------------------------------------- */
 
-    static_inline int tss_create(tss_t* key, tss_dtor_t destructor) {
-        return pthread_key_create(key, destructor) ? thrd_error : thrd_success;
+/* -- condition variables --------------------------------------------------- */
+
+#ifdef _NO_COND_DEFINITION
+
+    int cnd_init(cnd_t* cond) {
+        if (mtx_init(&cond->lock, mtx_plain) != thrd_success) {
+            goto mtx_lock_fail;
+        } else if (sem_init(&cond->sem_wait, 0, 0) != thrd_success) {
+            goto sem_wait_fail;
+        } else if (sem_init(&cond->sem_done, 0, 0) != thrd_success) {
+            goto sem_done_fail;
+        }
+
+        cond->wait = 0;
+        cond->sigs = 0;
+
+        return thrd_success;
+
+    sem_done_fail:
+        sem_destroy(&cond->sem_wait);
+    sem_wait_fail:
+        mtx_destroy(&cond->lock);
+    mtx_lock_fail:
+        return thrd_error;
     }
 
-    static_inline void* tss_get(tss_t key) {
-        return pthread_getspecific(key);
+    int cnd_signal(cnd_t* cond) {
+        mtx_lock(&cond->lock);
+
+        if (cond->wait > cond->sigs) {
+            cond->sigs++;
+            sem_post(&cond->sem_wait);
+            mtx_unlock(&cond->lock);
+            sem_wait(&cond->sem_done);
+        } else {
+            mtx_unlock(&cond->lock);
+        }
+
+        return thrd_success;
     }
 
-    static_inline int tss_set(tss_t key, void* value) {
-        return pthread_setspecific(key, value) ? thrd_error : thrd_success;
+    int cnd_broadcast(cnd_t* cond) {
+        mtx_lock(&cond->lock);
+
+        if (cond->wait > cond->sigs) {
+            int i;
+            const int waiting = cond->wait - cond->sigs;
+
+            cond->sigs = cond->wait;
+            for (i = 0; i < waiting; i++) {
+                if (sem_post(&cond->sem_wait) == thrd_error)
+                    return thrd_error;
+            }
+
+            mtx_unlock(&cond->lock);
+            for (i = 0; i < waiting; i++)
+                sem_wait(&cond->sem_done);
+        } else {
+            mtx_unlock(&cond->lock);
+        }
+
+        return thrd_success;
     }
 
-    static_inline void tss_delete(tss_t key) {
-        pthread_key_delete(key);
+    int cnd_timedwait(
+        cnd_t *__restrict cond,
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        int result;
+
+        mtx_lock(&cond->lock);
+        cond->wait++;
+        mtx_unlock(&cond->lock);
+
+        mtx_unlock(mutex);
+        result = sem_reltimedwait_np(&cond->sem_wait, duration);
+
+        mtx_lock(&cond->lock);
+        if (cond->sigs) {
+            if (!result)
+                sem_wait(&cond->sem_wait);
+
+            sem_post(&cond->sem_done);
+            cond->sigs--;
+        }
+
+        cond->wait--;
+        mtx_unlock(&cond->lock);
+        mtx_lock(mutex);
+        return result;
     }
 
-/* ---- call once API ------------------------------------------------------- */
-
-    static_inline void call_once(once_flag* flag, void (*func)(void)) {
-        pthread_once(flag, func);
+    int cnd_wait(cnd_t* cond, mtx_t* mutex) {
+        return cnd_timedwait(cond, mutex, NULL);
     }
+
+    void cnd_destroy(cnd_t* cond) {
+        sem_destroy(&cond->sem_done);
+        sem_destroy(&cond->sem_wait);
+        mtx_destroy(&cond->lock);
+    }
+
 #endif
 
-/* ---- semaphores ---------------------------------------------------------- */
+/* -- semaphores ------------------------------------------------------------ */
 
 #ifdef _NO_SEM_DEFINITION
-#   undef _NO_SEM_DEFINITION
-#   define SEM_VALUE_MAX INT_MAX
 
-    typedef struct sem_s {
-        int count, wait;
-        mtx_t lock;
-        cnd_t cond;
-    } sem_t;
-
-    static_inline int sem_init(sem_t* sem, int shared, unsigned int value) {
+    int sem_init(sem_t* sem, int shared, unsigned int value) {
         if (!sem || value > SEM_VALUE_MAX) {
             errno = EINVAL;
             return thrd_error;
@@ -1433,7 +2039,7 @@
         }
     }
 
-    static_inline int sem_destroy(sem_t* sem) {
+    int sem_destroy(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
             return thrd_error;
@@ -1446,7 +2052,7 @@
         mtx_destroy(&sem->lock);
     }
 
-    static_inline int sem_reltimedwait_np(
+    int sem_reltimedwait_np(
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
@@ -1468,7 +2074,7 @@
         return mtx_unlock(&sem->lock);
     }
 
-    static_inline int sem_timedwait(
+    int sem_timedwait(
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
@@ -1493,7 +2099,7 @@
         return sem_reltimedwait_np(sem, &relative_time);
     }
 
-    static_inline int sem_wait(sem_t* sem) {
+    int sem_wait(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
             return thrd_error;
@@ -1515,7 +2121,7 @@
         }
     }
 
-    static_inline int sem_trywait(sem_t* sem) {
+    int sem_trywait(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
             return thrd_error;
@@ -1531,7 +2137,7 @@
         }
     }
 
-    static_inline int sem_post(sem_t* sem) {
+    int sem_post(sem_t* sem) {
         if (!sem) {
             errno = EINVAL;
             return thrd_error;
@@ -1546,7 +2152,7 @@
         }
     }
 
-    static_inline int sem_getvalue(
+    int sem_getvalue(
         sem_t *__restrict sem,
         int *__restrict result_out
     ) {
@@ -1563,18 +2169,13 @@
     }
 #endif
 
-/* -- thread-specific storage ----------------------------------------------- */
+/* -- thread-local storage -------------------------------------------------- */
 
 #ifdef _NO_TSS_DEFINITION
 #   include <stdlib.h>
 #   include <string.h>
-#   undef _NO_TSS_DEFINITION
-#   define TSS_STORAGE_SIZE 128
-#   define TSS_DTOR_SETUP() \
-        __tss_dtor_entry __tss_storage[TSS_STORAGE_SIZE]; \
-        struct __tss_opt_mtx __tss_mtx
+#   define TSS_STORAGE_SIZE 256
 
-    typedef uint_least32_t tss_t;
     typedef struct __tss_dtor_entry {
         void* data;
         tss_dtor_t dtor;
@@ -1588,8 +2189,8 @@
         bool enabled;
     } __tss_opt_mtx;
 
-    extern LOCAL __tss_entry __tss_storage[TSS_STORAGE_SIZE];
-    extern LOCAL __tss_opt_mtx __tss_mtx;
+    static __tss_entry __tss_storage[TSS_STORAGE_SIZE];
+    static __tss_opt_mtx __tss_mtx;
 
     static int __tss_get_entry(__tss_entry** entry_out, bool alloc) {
         thrd_t thread;
@@ -1656,7 +2257,7 @@
         }
     }
 
-    static_inline int tss_create(tss_t* key_out, tss_dtor_t destructor) {
+    int tss_create(tss_t* key_out, tss_dtor_t destructor) {
         __tss_entry* entry;
         __tss_dtor_entry* dtor_entry;
         int result;
@@ -1683,7 +2284,7 @@
         return thrd_success;
     }
 
-    static_inline void* tss_get(tss_t key) {
+    void* tss_get(tss_t key) {
         __tss_entry* entry;
         if (__tss_get_entry(&entry, false) != thrd_success) {
             return NULL;
@@ -1695,7 +2296,7 @@
         ) ? NULL : entry->storage[key].data;
     }
 
-    static_inline int tss_set(tss_t key, void* value) {
+    int tss_set(tss_t key, void* value) {
         __tss_entry* entry;
         int result;
 
@@ -1709,7 +2310,7 @@
         return thrd_success;
     }
 
-    static_inline void tss_delete(tss_t key) {
+    void tss_delete(tss_t key) {
         __tss_entry* entry;
         if (__tss_get_entry(&entry, false) == thrd_success &&
             key < 64 &&
@@ -1722,15 +2323,9 @@
 
 #endif
 
-/* -- call once ------------------------------------------------------------- */
+/* -- call_once ------------------------------------------------------------- */
 
 #ifdef _NO_CALLONCE_DEFINITION
-#   undef _NO_CALLONCE_DEFINITION
-#   include "atomics.h"
-
-    typedef atomic_flag once_flag;
-#   define ONCE_FLAG_INIT ATOMIC_FLAG_INIT
-
 #   if GCC_PREREQ(1) || CLANG_PREREQ(1)
 #       if defined(__i386__) || defined(__x86_64__)
 #           define __THRD_PAUSE() __asm__ __volatile__("pause\n")
@@ -1755,17 +2350,20 @@
 #       define __THRD_PAUSE()
 #   endif
 
-    static_inline void call_once(once_flag* flag, void (*func)(void)) {
+    void call_once(once_flag* flag, void (*func)(void)) {
         if (flag && func && atomic_flag_test_and_set(flag))
             func();
     }
 
-#   undef __THRD_PAUSE
 #endif
 
 /* -- C++ thread::hardware_concurrency -------------------------------------- */
 
-static_inline unsigned int thrd_hardware_concurrency(void) {
+#ifdef _GNU_SOURCE
+#   include <sys/sysinfo.h>
+#endif
+
+unsigned thrd_hardware_concurrency(void) {
 #if defined(_WIN32) || defined(__WINRT__)
     SYSTEM_INFO info;
     GetSystemInfo(&info);
@@ -1785,5 +2383,9 @@ static_inline unsigned int thrd_hardware_concurrency(void) {
     return 0;
 #endif
 }
+
+#endif
+
+/* ========================================================================== */
 
 #endif /* THREAD_H_ */

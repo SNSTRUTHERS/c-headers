@@ -87,7 +87,10 @@ Cross-compiler multiplatform cooperative multitasking library.
 - Stackless coroutines (`Coro_Stack`, `CORO_DECLARE`, `CORO_DEFINE`).
 
 ## `thread.h`
-Multiplatform header-only C11-compatible preemptive multitasking library.
+Multiplatform single-file C11-compatible preemptive multitasking library.
+
+To build as a library, create a source file and define `THREAD_IMPLEMENTATION`
+before including `thread.h`.
 
 ### Dependencies
 - `macrodefs.h`
@@ -104,5 +107,5 @@ Multiplatform header-only C11-compatible preemptive multitasking library.
     the source files compiled using this header.
 - Hint for how many concurrent threads are available
   (`thrd_hardware_concurrency`).
-  - Acts like C++11's `thread::hardware_concurrency`.
+  - Equivalent to C++11's `thread::hardware_concurrency`.
 
