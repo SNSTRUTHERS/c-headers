@@ -253,85 +253,97 @@
 /* == API =================================================================== */
 
 #ifdef __STDC_NO_THREADS__
+    typedef int (*thrd_start_t)(void*);
+    typedef void (*tss_dtor_t)(void*);
 
-typedef int (*thrd_start_t)(void*);
-typedef void (*tss_dtor_t)(void*);
+    THRD_API int THRD_CALL thrd_create(
+        thrd_t* thread_out,
+        thrd_start_t func,
+        void* arg
+    ) NO_EXCEPT;
+    THRD_API int THRD_CALL thrd_equal(thrd_t a, thrd_t b) NO_EXCEPT;
+        thrd_t THRD_CALL thrd_current(void) NO_EXCEPT;
+    THRD_API int THRD_CALL thrd_sleep(
+        struct timespec const* duration,
+        struct timespec* remaining
+    ) NO_EXCEPT;
+    THRD_API void THRD_CALL thrd_yield(void) NO_EXCEPT;
+    THRD_API NO_RETURN void THRD_CALL thrd_exit(int result) NO_EXCEPT;
+    THRD_API int THRD_CALL thrd_detach(thrd_t thread) NO_EXCEPT;
+    THRD_API int THRD_CALL thrd_join(
+        thrd_t thread,
+        int* result_out
+    ) NO_EXCEPT;
 
-THRD_API int THRD_CALL thrd_create(
-    thrd_t* thread_out,
-    thrd_start_t func,
-    void* arg
-) NO_EXCEPT;
-THRD_API int THRD_CALL thrd_equal(thrd_t a, thrd_t b) NO_EXCEPT;
-    thrd_t THRD_CALL thrd_current(void) NO_EXCEPT;
-THRD_API int THRD_CALL thrd_sleep(
-    struct timespec const* duration,
-    struct timespec* remaining
-) NO_EXCEPT;
-THRD_API void THRD_CALL thrd_yield(void) NO_EXCEPT;
-THRD_API NO_RETURN void THRD_CALL thrd_exit(int result) NO_EXCEPT;
-THRD_API int THRD_CALL thrd_detach(thrd_t thread) NO_EXCEPT;
-THRD_API int THRD_CALL thrd_join(
-    thrd_t thread,
-    int* result_out
-) NO_EXCEPT;
+    THRD_API int THRD_CALL mtx_init(mtx_t* mutex, int type) NO_EXCEPT;
+    THRD_API void THRD_CALL mtx_destroy(mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL mtx_lock(mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL mtx_unlock(mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL mtx_timedlock(
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) NO_EXCEPT;
 
-THRD_API int THRD_CALL mtx_init(mtx_t* mutex, int type) NO_EXCEPT;
-THRD_API void THRD_CALL mtx_destroy(mtx_t* mutex) NO_EXCEPT;
-THRD_API int THRD_CALL mtx_lock(mtx_t* mutex) NO_EXCEPT;
-THRD_API int THRD_CALL mtx_unlock(mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL cnd_init(cnd_t* cond) NO_EXCEPT;
+    THRD_API void THRD_CALL cnd_destroy(cnd_t* cond) NO_EXCEPT;
+    THRD_API int THRD_CALL cnd_signal(cnd_t* cond) NO_EXCEPT;
+    THRD_API int THRD_CALL cnd_broadcast(cnd_t* cond) NO_EXCEPT;
+    THRD_API int THRD_CALL cnd_wait(cnd_t* cond, mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL cnd_timedwait(
+        cnd_t *__restrict cond,
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) NO_EXCEPT;
 
-THRD_API int THRD_CALL cnd_init(cnd_t* cond) NO_EXCEPT;
-THRD_API void THRD_CALL cnd_destroy(cnd_t* cond) NO_EXCEPT;
-THRD_API int THRD_CALL cnd_signal(cnd_t* cond) NO_EXCEPT;
-THRD_API int THRD_CALL cnd_broadcast(cnd_t* cond) NO_EXCEPT;
-THRD_API int THRD_CALL cnd_wait(cnd_t* cond, mtx_t* mutex) NO_EXCEPT;
+    THRD_API int THRD_CALL tss_create(
+        tss_t* key_out,
+        tss_dtor_t destructor
+    ) NO_EXCEPT;
+    THRD_API void* THRD_CALL tss_get(tss_t key) NO_EXCEPT;
+    THRD_API int THRD_CALL tss_set(tss_t key, void* value) NO_EXCEPT;
+    THRD_API void THRD_CALL tss_delete(tss_t key) NO_EXCEPT;
 
-THRD_API int THRD_CALL tss_create(
-    tss_t* key_out,
-    tss_dtor_t destructor
-) NO_EXCEPT;
-THRD_API void* THRD_CALL tss_get(tss_t key) NO_EXCEPT;
-THRD_API int THRD_CALL tss_set(tss_t key, void* value) NO_EXCEPT;
-THRD_API void THRD_CALL tss_delete(tss_t key) NO_EXCEPT;
-
-THRD_API void THRD_CALL call_once(
-    once_flag* flag,
-    void (*func)(void)
-) NO_EXCEPT;
-
+    THRD_API void THRD_CALL call_once(
+        once_flag* flag,
+        void (*func)(void)
+    ) NO_EXCEPT;
 #endif
 
 #ifndef _POSIX_SEMAPHORE_IMPL
-
-THRD_API int THRD_CALL sem_init(
-    sem_t* sem,
-    int shared,
-    unsigned value
-) NO_EXCEPT;
-THRD_API int THRD_CALL sem_destroy(sem_t* sem) NO_EXCEPT;
-THRD_API int THRD_CALL sem_post(sem_t* sem) NO_EXCEPT;
-THRD_API int THRD_CALL sem_wait(sem_t* sem) NO_EXCEPT;
-THRD_API int THRD_CALL sem_trywait(sem_t* sem) NO_EXCEPT;
-THRD_API int THRD_CALL sem_timedwait(
-    sem_t *__restrict sem,
-    struct timespec const *__restrict duration
-) NO_EXCEPT;
-THRD_API int THRD_CALL sem_getvalue(
-    sem_t *__restrict sem,
-    int *__restrict result_out
-) NO_EXCEPT;
-
-#endif
-#if !defined _POSIX_SEMAPHORE_IMPL || !defined __SOLARIS__
-
-THRD_API int THRD_CALL sem_reltimedwait_np(
-    sem_t *__restrict sem,
-    struct timespec const *__restrict duration
-) NO_EXCEPT;
-
+    THRD_API int THRD_CALL sem_init(
+        sem_t* sem,
+        int shared,
+        unsigned value
+    ) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_destroy(sem_t* sem) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_post(sem_t* sem) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_wait(sem_t* sem) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_trywait(sem_t* sem) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_timedwait(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) NO_EXCEPT;
+    THRD_API int THRD_CALL sem_getvalue(
+        sem_t *__restrict sem,
+        int *__restrict result_out
+    ) NO_EXCEPT;
 #endif
 
+#if !defined(_POSIX_SEMAPHORE_IMPL) || !defined(__SOLARIS__)
+    THRD_API int THRD_CALL sem_reltimedwait_np(
+        sem_t *__restrict sem,
+        struct timespec const *__restrict duration
+    ) NO_EXCEPT;
+#endif
+
+THRD_API int THRD_CALL mtx_reltimedlock_np(
+    mtx_t *__restrict mtx,
+    struct timespec const *__restrict duration
+) NO_EXCEPT;
+THRD_API int THRD_CALL cnd_reltimedwait_np(
+    mtx_t *__restrict mtx,
+    struct timespec const *__restrict duration
+) NO_EXCEPT;
 THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
 
 /* == IMPLEMENTATION ======================================================== */
@@ -342,6 +354,44 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
     static void __tss_thrd_exit(void);
 #endif
 
+#if defined(__WINRT__) || defined(_WIN32)
+    static struct timespec _get_time(void) {
+        struct timespec ts;
+        union {
+            FILETIME ft;
+            uint64_t u64;
+        } time;
+
+        GetSystemTimeAsFileTime(&time.ft);
+        time.u64 *= 100;
+        time.u64 -= UINT64_C(11644473600000000000);
+
+        ts.tv_sec = time.u64 / 1000000000;
+        ts.tv_nsec = time.u64 % 1000000000;
+        return ts;
+    }
+#else
+#   ifdef __MVS__
+#       include <sys/time.h>
+#   endif
+
+    static struct timespec _get_time(void) {
+#   ifdef __MVS__
+        union {
+            struct timeval tv;
+            struct timespec ts;
+        } time;
+        gettimeofday(&time.tv, NULL);
+        time.ts *= 1000;
+        return time.ts;
+#   else
+        struct timespec time;
+        clock_gettime(CLOCK_REALTIME, &time);
+        return time;
+#   endif
+    }
+#endif
+
 #if defined(__WINRT__) || defined(_WIN32) /* -- windows implementation ------ */
 #   include <stdlib.h>
 #   include <string.h>
@@ -349,6 +399,8 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
 #   define __TIMESPEC_TO_MS(ts) ( \
         ((ts)->tv_sec * 1000u) + ((ts)->tv_nsec / 1000000) \
     )
+#   define _NO_MTX_TIMEDLOCK 1
+#   define _NO_MTX_RELTIMEDLOCK 1
 
 #   ifdef __STDC_NO_THREADS__
 
@@ -570,39 +622,6 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         }
     }
 
-    int mtx_timedlock(
-        mtx_t *__restrict mutex,
-        struct timespec const *__restrict duration
-    ) {
-        if (!mutex ||
-            !duration ||
-            duration->tv_sec < 0 ||
-            duration->tv_nsec < 0 ||
-            duration->tv_nsec >= 1000000000
-        ) {
-            SetLastError(ERROR_INVALID_PARAMETER);
-            return thrd_error;
-        } else {
-            union {
-                uint64_t nsx100;
-                FILETIME filetime;
-            } expire, now;
-
-            GetSystemTimeAsFileTime(&expire.filetime);
-            expire.nsx100 += __TIMESPEC_TO_MS(duration) * 10000;
-            while (mtx_trylock(mutex) != thrd_success) {
-                GetSystemTimeAsFileTime(&now.filetime);
-                if (expire.nsx100 < now.nsx100) {
-                    return thrd_timedout;
-                } else {
-                    thrd_yield();
-                }
-            }
-
-            return thrd_success;
-        }
-    }
-
     int mtx_unlock(mtx_t* mutex) {
         if (!mutex) {
             SetLastError(ERROR_INVALID_PARAMETER);
@@ -771,11 +790,40 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
     ) {
-        if (!cond || !mutex || (duration &&
+        if (!cond || !mutex || !duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return thrd_error;
+        } else {
+            struct timespec current = _get_time();
+            if ((current.tv_sec -= duration->tv_sec) < 0) {
+                current.tv_sec = current.tv_nsec = 0;
+            } else if ((current.tv_nsec -= duration->tv_nsec) < 0) {
+                if (current.tv_sec) {
+                    current.tv_nsec += 1000000000;
+                    current.tv_sec--;
+                } else {
+                    current.tv_nsec = 0;
+                }
+            }
+
+            return cnd_reltimedwait_np(cond, mutex, &rel);
+        }
+    }
+
+    int cnd_reltimedwait_np(
+        cnd_t *__restrict cond,
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        if (!cond || !mutex || (duration && (
                 duration->tv_sec < 0 ||
                 duration->tv_nsec < 0 ||
                 duration->tv_nsec >= 1000000000
-        )) {
+        ))) {
             SetLastError(ERROR_INVALID_PARAMETER);
             return thrd_error;
         } else {
@@ -817,7 +865,7 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
     }
 
     int cnd_wait(cnd_t* cond, mtx_t* mutex) {
-        return cnd_timedwait(cond, mutex, NULL);
+        return cnd_reltimedwait_np(cond, mutex, NULL);
     }
 
     void cnd_destroy(cnd_t* cond) {
@@ -1346,17 +1394,41 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
     }
 
     int mtx_timedlock(
-        mtx_t *__restrict mutex,
+        mtx_t *__restrict,
         struct timespec const *__restrict duration
     ) {
-        SceUInt timeout;
-
         if (!mutex ||
             !duration ||
             duration->tv_sec < 0 ||
             duration->tv_nsec < 0 ||
             duration->tv_nsec >= 1000000000
         ) {
+            return thrd_error;
+        } else {
+            struct timespec current = _get_time();
+            if ((current.tv_sec -= duration->tv_sec) < 0) {
+                return mtx_trylock(mutex);
+            } else if ((current.tv_nsec -= duration->tv_nsec) < 0) {
+                current.tv_nsec += 1000000000;
+                if (!current.tv_sec--)
+                    return mtx_trylock(mutex);
+            }
+
+            return mtx_reltimedlock_np(mutex, &current);
+        }
+    }
+
+    int mtx_reltimedlock_np(
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        SceUInt timeout;
+
+        if (!mutex || (duration && (
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        ))) {
             return thrd_error;
         }
 
@@ -1544,14 +1616,14 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         pthread_mutexattr_init(&attr);
 
         if (type & mtx_timed) {
-#           ifdef __linux__
+#           ifdef PTHREAD_MUTEX_TIMED_NP
                 pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_TIMED_NP);
 #           elif defined(PTHREAD_MUTEX_TIMED)
                 pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_TIMED);
 #           endif
         }
         if (type & mtx_recursive) {
-#           ifdef __linux__
+#           ifdef PTHREAD_MUTEX_RECURSIVE_NP
                 pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
 #           elif defined(PTHREAD_MUTEX_RECURSIVE)
                 pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -1570,49 +1642,40 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         return pthread_mutex_lock(mutex) ? thrd_error : thrd_success;
     }
 
-    int mtx_timedlock(
-        mtx_t *__restrict mutex,
-        struct timespec const *__restrict duration
-    ) {
 #   if !defined(__CYGWIN__) && !defined(__MACOSX__)
-        switch (pthread_mutex_timedlock(mutex, duration)) {
-        case ETIMEDOUT:
-            return thrd_timedout;
-        case 0:
-            return thrd_success;
-        default:
-            return thrd_error;
-        }
-#   else
-        if (!mutex ||
-            !duration ||
-            duration->tv_sec < 0 ||
-            duration->tv_nsec < 0 ||
-            duration->tv_nsec >= 1000000000
+        int mtx_timedlock(
+            mtx_t *__restrict mutex,
+            struct timespec const *__restrict duration
         ) {
-            errno = EINVAL;
-            return thrd_error;
-        }
-
-        struct timespec expire, now;
-        clock_gettime(CLOCK_REALTIME, &expire);
-        expire.tv_sec += duration->tv_sec;
-        expire.tv_nsec += duration->tv_nsec;
-
-        while (mtx_trylock(mutex) != thrd_success) {
-            clock_gettime(CLOCK_REALTIME, &now);
-            if (expire.tv_sec < now.tv_sec ||
-                expire.tv_nsec < now.tv_nsec
-            ) {
+            switch (pthread_mutex_timedlock(mutex, duration)) {
+            case ETIMEDOUT:
                 return thrd_timedout;
-            } else {
-                thrd_yield();
+            case 0:
+                return thrd_success;
+            default:
+                return thrd_error;
             }
         }
-
-        return thrd_success;
+#   else
+#       define _NO_MTX_TIMEDLOCK 1
 #   endif
-    }
+#   ifdef __SOLARIS__
+        int mtx_reltimedlock_np(
+            mtx_t *__restrict mutex,
+            struct timespec const *__restrict duration
+        ) {
+            switch (pthread_mutex_reltimedlock_np(mutex, duration)) {
+            case ETIMEDOUT:
+                return thrd_timedout;
+            case 0:
+                return thrd_success;
+            default:
+                return thrd_error;
+            }
+        }
+#   else
+#       define _NO_MTX_RELTIMEDLOCK 1
+#   endif
 
     int mtx_trylock(mtx_t* mutex) {
         switch (pthread_mutex_trylock(mutex)) {
@@ -1649,48 +1712,47 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         return pthread_cond_wait(cond, mutex) ? thrd_error : thrd_success;
     }
 
+    int cnd_reltimedwait_np(
+        cnd_t *__restrict cond,
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+#   if defined(__APPLE__) && defined(__MACH__)
+        return pthread_cond_timedwait_relative_np(cond, mutex, duration);
+#   elif defined(__SOLARIS__)
+        return pthread_cond_reltimedwait_np(cond, mutex, duration);
+#   else
+        if (duration && (
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        )) {
+            return thrd_error;
+        } else if (!duration) {
+            return cnd_wait(cond, mutex);
+        } else {
+            struct timespec absolute_time = _get_time();
+            absolute_time.tv_sec += duration->tv_sec;
+            if ((absolute_time.tv_nsec += duration->tv_nsec) >= 1000000000) {
+                absolute_time.tv_nsec -= 1000000000;
+                absolute_time.tv_sec++;
+            }
+
+            return cnd_timedwait(cond, mutex, &absolute_time);
+        }
+#   endif
+    }
+
     int cnd_timedwait(
         cnd_t *__restrict cond,
         mtx_t *__restrict mutex,
         struct timespec const *__restrict duration
     ) {
-
         int result;
-
-#   if defined(__APPLE__) && defined(__MACH__)
-        result = pthread_cond_timedwait_relative_np(cond, mutex, duration);
-#   else
-        struct timespec absolute_time;
-#       ifdef __MVS__
-            struct timeval current_time;
-#       endif
-
-        if (!duration ||
-            duration->tv_sec < 0 ||
-            duration->tv_nsec < 0 ||
-            duration->tv_nsec >= 1000000000
-        ) {
-            return thrd_error;
-        }
-
-#       ifdef __MVS__
-            gettimeofday(&current_time, NULL);
-            absolute_time.tv_sec = current_time.tv_sec +
-                (absolute_time.tv_usec * 1000 + duration->tv_nsec) / 1000000000;
-            absolute_time.tv_nsec =
-                (absolute_time.tv_usec * 1000 + duration->tv_nsec) % 1000000000;
-#       else
-            clock_gettime(CLOCK_REALTIME, &absolute_time);
-            absolute_time.tv_sec += duration->tv_sec +
-                (absolute_time.tv_nsec + duration->tv_nsec) / 1000000000;
-            absolute_time.tv_nsec += duration->tv_nsec;
-            absolute_time.tv_nsec %= 1000000000;
-#       endif
 
         do {
             result = pthread_cond_timedwait(cond, mutex, &absolute_time);
         } while (result == EINTR);
-#   endif
 
         errno = result;
         switch (result) {
@@ -1808,14 +1870,15 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         ) {
             mach_timespec_t ts;
 
-            if (!sem ||
-                !duration ||
-                duration->tv_sec < 0 ||
-                duration->tv_nsec < 0 ||
-                duration->tv_nsec >= 1000000000
-            ) {
+            if (!sem || (duration &&
+                    duration->tv_sec < 0 ||
+                    duration->tv_nsec < 0 ||
+                    duration->tv_nsec >= 1000000000
+            )) {
                 errno = EINVAL;
                 return thrd_error;
+            } else if (!duration) {
+                return sem_wait(sem);
             }
 
             ts.tv_sec = (unsigned int)duration->tv_sec;
@@ -1848,7 +1911,7 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
                 return thrd_error;
             }
 
-            clock_gettime(CLOCK_REALTIME, &relative_time);
+            relative_time = _get_time();
             relative_time.tv_nsec -= duration->tv_nsec;
             relative_time.tv_sec -= duration->tv_sec;
             if (relative_time.tv_nsec < 0) {
@@ -1886,6 +1949,7 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
             }
 
             sem->val++;
+            sem_reltimedwait_np;
             return thrd_success;
         }
 #   elif defined(__APPLE__) || defined(__MVS__)
@@ -1896,15 +1960,17 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         ) {
             struct timespec absolute_time;
 
-            if (!duration ||
+            if (duration && (
                 duration->tv_sec < 0 ||
                 duration->tv_nsec < 0 ||
                 duration->tv_nsec >= 1000000000
-            ) {
+            )) {
                 return thrd_error;
+            } else if (!duration) {
+                return sem_wait(sem);
             }
 
-            clock_gettime(CLOCK_REALTIME, &absolute_time);
+            absolute_time = _get_time();
             absolute_time.tv_sec += duration->tv_sec +
                 (absolute_time.tv_nsec + duration->tv_nsec) / 1000000000;
             absolute_time.tv_nsec += duration->tv_nsec;
@@ -1914,7 +1980,68 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         }
 #   endif
 
-#endif /* ------------------------------------------------------------------- */
+#endif
+
+/* ---- mutex locking ------------------------------------------------------- */
+
+#ifndef __STDC_NO_THREADS__
+#   define _NO_MTX_RELTIMEDLOCK 1
+#endif
+
+#ifdef _NO_MTX_TIMEDLOCK
+#   undef _NO_MTX_TIMEDLOCK
+
+    int mtx_timedlock(
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        if (!duration ||
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        )) {
+            return thrd_error;
+        } else while (mtx_trylock(mutex) != thrd_success) {
+            struct timespec now = _get_time();
+            if (duration->tv_sec < now.tv_sec ||
+                duration->tv_nsec < now.tv_nsec
+            )
+                return thrd_timedout;
+
+            thrd_yield();
+        }
+
+        return thrd_success;
+    }
+#endif
+
+#ifdef _NO_MTX_RELTIMEDLOCK
+#   undef _NO_MTX_RELTIMEDLOCK
+
+    int mtx_reltimedlock_np(
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        if (duration && (
+            duration->tv_sec < 0 ||
+            duration->tv_nsec < 0 ||
+            duration->tv_nsec >= 1000000000
+        )) {
+            return thrd_error;
+        } else if (!duration) {
+            return mtx_lock(cond, mutex);
+        } else {
+            struct timespec absolute_time = _get_time();
+            absolute_time.tv_sec += duration->tv_sec;
+            if ((absolute_time.tv_nsec += duration->tv_nsec) >= 1000000000) {
+                absolute_time.tv_nsec -= 1000000000;
+                absolute_time.tv_sec++;
+            }
+
+            return mtx_timedlock(mutex, &absolute_time);
+        }
+    }
+#endif
 
 /* -- condition variables --------------------------------------------------- */
 
@@ -1992,6 +2119,35 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         mtx_unlock(&cond->lock);
 
         mtx_unlock(mutex);
+        result = sem_timedwait(&cond->sem_wait, duration);
+
+        mtx_lock(&cond->lock);
+        if (cond->sigs) {
+            if (!result)
+                sem_wait(&cond->sem_wait);
+
+            sem_post(&cond->sem_done);
+            cond->sigs--;
+        }
+
+        cond->wait--;
+        mtx_unlock(&cond->lock);
+        mtx_lock(mutex);
+        return result;
+    }
+
+    int cnd_reltimedwait_np(
+        cnd_t *__restrict cond,
+        mtx_t *__restrict mutex,
+        struct timespec const *__restrict duration
+    ) {
+        int result;
+
+        mtx_lock(&cond->lock);
+        cond->wait++;
+        mtx_unlock(&cond->lock);
+
+        mtx_unlock(mutex);
         result = sem_reltimedwait_np(&cond->sem_wait, duration);
 
         mtx_lock(&cond->lock);
@@ -2010,7 +2166,7 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
     }
 
     int cnd_wait(cnd_t* cond, mtx_t* mutex) {
-        return cnd_timedwait(cond, mutex, NULL);
+        return cnd_reltimedwait_np(cond, mutex, NULL);
     }
 
     void cnd_destroy(cnd_t* cond) {
@@ -2070,10 +2226,9 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
             return thrd_error;
         } else if (mtx_lock(&sem->lock) == thrd_error) {
             return thrd_error;
-        } else if (
-            !sem->count &&
-            cnd_timedwait(&sem->cond, &sem->lock, duration) != thrd_success
-        ) {
+        } else if (!sem->count && cnd_reltimedwait_np(
+            &sem->cond, &sem->lock, duration
+        ) != thrd_success) {
             mtx_unlock(&sem->lock);
             return thrd_error;
         } else if (sem->count) {
@@ -2087,25 +2242,21 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         sem_t *__restrict sem,
         struct timespec const *__restrict duration
     ) {
-        struct timespec relative_time;
-
-        if (!duration ||
-            duration->tv_sec < 0 ||
-            duration->tv_nsec < 0 ||
-            duration->tv_nsec >= 1000000000
-        ) {
+        if (!sem) {
             errno = EINVAL;
             return thrd_error;
+        } else if (mtx_lock(&sem->lock) == thrd_error) {
+            return thrd_error;
+        } else if (!sem->count && cnd_timedwait(
+            &sem->cond, &sem->lock, duration
+        ) != thrd_success) {
+            mtx_unlock(&sem->lock);
+            return thrd_error;
+        } else if (sem->count) {
+            sem->count--;
         }
 
-        clock_gettime(CLOCK_REALTIME, &relative_time);
-        relative_time.tv_nsec -= duration->tv_nsec;
-        relative_time.tv_sec -= duration->tv_sec;
-        if (relative_time.tv_nsec < 0) {
-            relative_time.tv_nsec += 1000000000;
-            relative_time.tv_sec -= 1;
-        }
-        return sem_reltimedwait_np(sem, &relative_time);
+        return mtx_unlock(&sem->lock);
     }
 
     int sem_wait(sem_t* sem) {
