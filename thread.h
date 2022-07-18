@@ -1,7 +1,7 @@
 /**
  * @file thread.h
  * @author Simon Bolivar
- * @date 17 Jul 2022
+ * @date 18 Jul 2022
  * 
  * @brief Standard C11 threading and POSIX semaphore compatible library.
  * 
@@ -354,7 +354,18 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
     static void __tss_thrd_exit(void);
 #endif
 
-#if defined(__WINRT__) || defined(_WIN32)
+#if STDC_PREREQ(201103L)
+#   ifdef _USE_32BIT_TIME_T
+#       undef _USE_32BIT_TIME_T
+#   endif
+#   include <time.h>
+
+    static struct timespec _get_time(void) {
+        struct timespec time;
+        timespec_get(&time, TIME_UTC);
+        return time;
+    }
+#elif defined(__WINRT__) || defined(_WIN32)
     static struct timespec _get_time(void) {
         struct timespec ts;
         union {
@@ -370,25 +381,23 @@ THRD_API unsigned THRD_CALL thrd_hardware_concurrency(void);
         ts.tv_nsec = time.u64 % 1000000000;
         return ts;
     }
-#else
-#   ifdef __MVS__
-#       include <sys/time.h>
-#   endif
+#elif defined __MVS__
+#   include <sys/time.h>
 
     static struct timespec _get_time(void) {
-#   ifdef __MVS__
         union {
             struct timeval tv;
             struct timespec ts;
         } time;
         gettimeofday(&time.tv, NULL);
-        time.ts *= 1000;
+        time.ts.tv_nsec *= 1000;
         return time.ts;
-#   else
+    }
+#else
+    static struct timespec _get_time(void) {
         struct timespec time;
         clock_gettime(CLOCK_REALTIME, &time);
         return time;
-#   endif
     }
 #endif
 
