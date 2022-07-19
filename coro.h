@@ -1,7 +1,7 @@
 /**
  * @file coro.h
  * @author Simon Bolivar
- * @date 17 Jul 2022
+ * @date 19 Jul 2022
  * 
  * @brief Stackful and stackless coroutine library.
  * 
@@ -1071,9 +1071,10 @@ static_force_inline void fiber_suspend(
     enum { _CORO_FRAME_SIZE_ ##name = 1 }
 #define CORO_DECLARE_WITH_FRAME(RetT, name, frame) \
     typedef RetT _CoroRet ##name; \
-    WASM_DEFINE(struct, _CoroFrame ##name) frame; \
+    typedef struct _CoroFrame ##name _CoroFrame ##name; \
+    struct _CoroFrame ##name frame; \
     enum { \
-        _CORO_FRAME_SIZE_ ##name = (WASM_ALIGN_SIZE( \
+        _CORO_FRAME_SIZE_ ##name = (CORO_ALIGN_SIZE( \
             sizeof(_CoroFrame ##name), ALIGN_OF(Coro_Stack) \
         ) / sizeof(Coro_Stack)) + 1 \
     }
@@ -1104,14 +1105,13 @@ static_force_inline void fiber_suspend(
 #   define CORO_DEFINE(name) _CoroRet ##name name
 #endif
 #ifdef _GNUC_VA_ARGS
-#   define _CORO_PASTE_BODY1(name, args...)
-#   define _CORO_PASTE_BODY0(name, args...) \
-        { CORO_BEGIN(name) { args } CORO_END }
+#   define _CORO_DEFINE00(name, params, args...) \
+        _CORO_DEFINE01(name, params) { CORO_BEGIN(name) args CORO_END; }
 #   define CORO_DEFINE(args...) \
-        _CoroRet ##name name _TUPHEAD(args) \
-            CONCATENATE(_CORO_PASTE_BODY, \
-                VARGEMPTY(_TUPHEAD(args)) \
-            )(name, _TUPTAIL(args))
+        _CORO_INVOKE(_PASTE3,(_CORO_DEFINE, \
+            VARGEMPTY _TUPTAIL(args), \
+            VARGEMPTY _TUPTAIL _TUPTAIL(args) \
+        ))(args)
 #elif !defined _NO_VA_ARGS
 #   define _CORO_DEFINE00(name, params, ...) \
         _CORO_DEFINE01(name, params) { CORO_BEGIN(name) __VA_ARGS__ CORO_END; }
@@ -1145,6 +1145,8 @@ case line:; } while (0)
 #   define _CORO_YIELD11(line) CONCATENATE(_CORO_YIELD11,VARGEMPTY(line))(line)
 #   define _CORO_YIELD111() _CORO_YIELD1()
 #   define _CORO_YIELD110 _CORO_YIELD1
+#   define _CORO_YIELD01(line, value) \
+        CONCATENATE(_CORO_YIELD10,VARGEMPTY(line))(line, value)
 #   define _CORO_YIELD101(line, value) _CORO_YIELD1(value)
 #   define _CORO_YIELD100 _CORO_YIELD2
 #   define _CORO_INVOKE_(a, b) a b
@@ -1162,11 +1164,17 @@ case line:; } while (0)
     case __LINE__ - _lineoff:; } while (0)
 #endif
 #ifdef _GNUC_VA_ARGS
+#   define _CORO_YIELD00(line, value, args...) do { \
+        VARGAPPLY(_CORO_SAVE,, (args), SEMICOLON); \
+        _CORO_YIELD01(line, value); \
+        VARGAPPLY(_CORO_RESTORE,, (args), SEMICOLON); \
+    } while (0)
 #   define CORO_YIELD(args...) \
-        CONCATENATE(_CORO_YIELD, VARGCOUNT(args))(args)
+        _CORO_INVOKE(_PASTE3,(_CORO_YIELD, \
+            VARGEMPTY _TUPTAIL(args), \
+            VARGEMPTY _TUPTAIL _TUPTAIL(args) \
+        ))(args)
 #elif !defined _NO_VA_ARGS
-#   define _CORO_YIELD01(line, value) \
-        CONCATENATE(_CORO_YIELD10,VARGEMPTY(line))(line, value)
 #   define _CORO_YIELD00(line, value, ...) do { \
         VARGAPPLY(_CORO_SAVE,, (__VA_ARGS__), SEMICOLON); \
         _CORO_YIELD01(line, value); \
