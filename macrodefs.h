@@ -4890,14 +4890,14 @@
 #   if !CPP_PREREQ(201103L) /* no constexpr in C++03- */
 #       define constexpr
 #   endif
-        template <typename T>
-        constexpr static_force_inline T __macrodefs_min(T a, T b) {
-            return (a < b) ? a : b;
+        template <typename T, typename U>
+        constexpr static_force_inline T __macrodefs_min(T a, U b) {
+            return (a < static_cast<T>(b)) ? a : static_cast<T>(b);
         }
 
-        template <typename T>
-        constexpr static_force_inline T __macrodefs_max(T a, T b) {
-            return (a > b) ? a : b;
+        template <typename T, typename U>
+        constexpr static_force_inline T __macrodefs_max(T a, U b) {
+            return (a > static_cast<T>(b)) ? a : static_cast<T>(b);
         }
 #   if !CPP_PREREQ(201103L)
 #       undef constexpr
