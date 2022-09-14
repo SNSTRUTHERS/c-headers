@@ -227,6 +227,8 @@
 #ifndef _NO_VA_ARGS
 #   define _COMMA_1
 #   define _COMMA_0 ,
+#   define PICK0(a, b) a
+#   define PICK1(a, b) b
 #   define COMMA() ,
 #   define SEMICOLON() ;
 #   define SPACE()
@@ -1029,8 +1031,13 @@
             VARGEMPTY(_VARGAPPLY99(name, extra, sep, _TUPTAIL args)) \
         )(sep) \
         _VARGAPPLY99(name, extra, sep, _TUPTAIL args)
-#   define VARGAPPLY(name, extra, args, sep) \
-        CONCATENATE(_VARGAPPLY, VARGCOUNT args)(name, extra, sep, args)
+
+#   define VARGAPPLY(name, extra, args, ...) \
+        CONCATENATE(_VARGAPPLY, VARGCOUNT args)( \
+            name, \
+            extra, \
+            CONCATENATE(PICK, VARGEMPTY(__VA_ARGS__))(__VA_ARGS__, SPACE), \
+            args)
 
 #   define _VARGEACH(name, args) name(args)
 #   define VARGEACH(name, args, sep) VARGAPPLY(_VARGEACH, name, args, sep)
