@@ -1368,6 +1368,8 @@
 #   define COMPILER_NAME \
         "Green Hills C/C++ " STRINGIFY(__MACRODEFS_GHS_MAJOR) "." \
         STRINGIFY(__MACRODEFS_GHS_MINOR) "." STRINGIFY(__MACRODEFS_GHS_PATCH)
+#elif defined(__IAR_SYSTEMS_ICC__)
+#   define COMPILER_NAME "IAR C/C++ " STRINGIFY(__VER__)
 #elif defined(__SUNPRO_C)
 #   if __SUNPRO_C == 0x420
 #       define COMPILER_NAME "Sun Workshop 4.0"
@@ -1628,6 +1630,8 @@
 #   define COMPILER_NAME "HP aC++"
 #elif defined(__sgi)
 #   define COMPILER_NAME "SGI"
+#elif defined(__circle_build__)
+#   define COMPILER_NAME "Circle Build " STRINGIFY(__circle_build__)
 #elif defined(__EMSCRIPTEN__)
 #   define COMPILER_NAME "Emscripten " \
         STRINGIFY(__EMSCRIPTEN_major__) "." \
@@ -2111,6 +2115,27 @@
 #       ifdef _WIN32
 #           define __macrodefs_attribute_dllexport          1
 #       endif
+#   elif defined(__IAR_SYSTEMS_ICC__)
+#       define __macrodefs_attribute_alias                  1
+#       define __macrodefs_attribute_aligned                1
+#       define __macrodefs_attribute_always_inline          1
+#       define __macrodefs_attribute_cmse_nonsecure_call    1
+#       define __macrodefs_attribute_cmse_nonsecure_entry   1
+#       define __macrodefs_attribute_const                  1
+#       define __macrodefs_attribute_constructor            1
+#       define __macrodefs_attribute_deprecated             1
+#       define __macrodefs_attribute_naked                  1
+#       define __macrodefs_attribute_noinline               1
+#       define __macrodefs_attribute_noreturn               1
+#       define __macrodefs_attribute_packed                 1
+#       define __macrodefs_attribute_pcs                    1
+#       define __macrodefs_attribute_pure                   1
+#       define __macrodefs_attribute_section                1
+#       define __macrodefs_attribute_target                 1
+#       define __macrodefs_attribute_transparent_union      1
+#       define __macrodefs_attribute_unused                 1
+#       define __macrodefs_attribute_volatile               1
+#       define __macrodefs_attribute_weak                   1
 #   elif defined(__CC_ARM)
 #       define __macrodefs_attribute_aligned                1
 #       define __macrodefs_attribute_always_inline          1
@@ -3305,7 +3330,8 @@
 #       define __macrodefs_extension_cxx_exceptions 1
 #       define __macrodefs_extension___cxx_exceptions__ 1
 #   endif
-#   if (defined(_CPPRTTI) && (_CPPRTTI > 0)) || defined(__GXX_RTTI)
+#   if (defined(_CPPRTTI) && (_CPPRTTI > 0)) || defined(__GXX_RTTI) \
+        || defined(__RTTI__)
 #       define __macrodefs_extension_cxx_rtti 1
 #       define __macrodefs_extension___cxx_rtti__ 1
 #   endif
@@ -4486,7 +4512,7 @@
 #   define UINT16_C(val) val
 #   define  INT32_C(val) val
 #   define UINT32_C(val) val ##u
-#   ifdef __LP64__
+#   if defined(__LP64__) || defined(__lp64__)
         typedef   signed long  int64_t;
         typedef unsigned long uint64_t;
 #       define  INT64_C(val) val ##l
