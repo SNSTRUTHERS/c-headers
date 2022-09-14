@@ -1,7 +1,7 @@
 /**
  * @file coro.h
  * @author Simon Bolivar
- * @date 19 Jul 2022
+ * @date 13 Sep 2022
  * 
  * @brief Stackful and stackless coroutine library.
  * 
@@ -1129,7 +1129,6 @@ static_force_inline void fiber_suspend(
         _CoroFrame ##name *const frame = (_CoroFrame ##name*)&coro[1]; \
         (void)frame; (void)coro_next; \
     default: do
-#define CORO_END while (0); } while (0)
 
 #define CORO_YIELD_(line, value) do { \
     coro[0] = (Coro_Stack)(line); \
@@ -1191,5 +1190,6 @@ case line:; } while (0)
     if (coro[0]) coro[0] = 0; \
     return value; \
 } while (0)
+#define CORO_END(value) while (0); } while (0); CORO_RETURN(value)
 
 #endif /* CORO_H_ */
