@@ -3724,12 +3724,16 @@
 #else
 #   define UNAVAILABLE
 #endif
-#if __has_attribute(const) /* GCC 2.5+ const */
+#if __has_c_attribute(unsequenced) /* C23 unsequenced */
+#   define CONST_FUNC [[unsequenced]]
+#elif __has_attribute(const) /* GCC 2.5+ const */
 #   define CONST_FUNC __attribute__((__const__))
 #else
 #   define CONST_FUNC
 #endif
-#if __has_attribute(pure) /* GCC 2.95+ pure */
+#if __has_c_attribute(reproducible) /* C23 reproducible */
+#   define PURE_FUNC [[reproducible]]
+#elif __has_attribute(pure) /* GCC 2.95+ pure */
 #   define PURE_FUNC __attribute__((__pure__))
 #else
 #   define PURE_FUNC
