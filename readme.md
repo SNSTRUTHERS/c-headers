@@ -23,7 +23,8 @@ General-use definitions, annotations, and macro definitions.
 - Compiler feature detection (`__has_attribute`, `__has_declspec_attribute`,
 etc.).
   - Includes C++ feature detection macros (e.g. `cpp_constexpr`, `cpp_rtti`).
-- Cross-compiler compatible function, typedef, pointer, and parameter attributes.
+- Cross-compiler compatible function, typedef, pointer, and parameter
+  attributes.
   - `ALLOCATOR` to denote an associated free function for a given allocation
     function.
   - `CHECK_RESULT` to enforce `if (error) { HANDLE }` on lazy devs.
@@ -54,7 +55,21 @@ etc.).
   - `VARGEMPTY` checks if the parameter list it is provided is empty;
     returns 1 if empty, 0 if not.
   - `VARGCOUNT` returns the number of parameters it has been passed.
-  - `VARGAPPLY` applies a macro to a provided parameter list.
+  - `VARGAPPLY` & `VARGEACH` apply a macro to a provided parameter list.
+    - macros applied via `VARGEACH` take one parameter, provided via
+      `__VA_ARGS__`.
+    - macros applied via `VARGAPPLY` take two parameters, one via
+      `__VA_ARGS__` and a constant provided in the `VARGAPPLY` call itself.
+    - both optionally take a separator -- a name which, when succeeded by an
+      empty set of parenthesis, should expand to a token.
+      - Defaults to `SPACE`; other options are included, such as `SEMICOLON`
+        and `COMMA`.
+      - Separators are applied between visible tokens; *i.e.* only one
+        separator will be emitted in between two visible macro expansions,
+        even if there are multiple blank macro expansions separating them or
+        if the end of the argument list is reached.
+        - *e.g.*: `VARGEACH(VARGPACK, (1, 2, '3', , 4,), COMMA)` expands to
+          the tokens: `1 , 2 , '3' , 4 `.
 
 ## `atomics.h`
 Cross-compiler header-only atomic operations library.
@@ -71,7 +86,7 @@ Cross-compiler header-only atomic operations library.
         `atomic_exchange_uint16`.
       - This is not a problem in C++.
 - Atomic flag operations (`atomic_flag`).
-- Read-write memory synchronization (`atmoic_fence`).
+- Read-write memory synchronization (`atomic_fence`).
 
 ## `coro.h`
 Cross-compiler multiplatform cooperative multitasking library.
@@ -81,10 +96,76 @@ Cross-compiler multiplatform cooperative multitasking library.
 
 ### Features
 - Stackful coroutines (`Coro_Fiber`).
+  - *i.e.* uses an operating-system provided call stack.
   - Is compatible with Valgrind; define `CORO_USE_VALGRIND` before including
     the header if your compiler cannot find `valgrind/valgrind.h`.
   - Define `CORO_NO_FIBERS` to not include fiber definitons.
-- Stackless coroutines (`Coro_Stack`, `CORO_DECLARE`, `CORO_DEFINE`).
+- Stackless coroutines (`CORO_DECLARE`, `CORO_DEFINE`, `CORO_BEGIN`,
+  `CORO_END`).
+  - *i.e.* uses a user-provided stack (`Coro_Stack`).
+
+### Sample Usage
+#### Stackless coroutines
+```c
+// sample uses features or extensions provided via
+// GNU C, MS Visual C, ISO C99+, or ISO C++11+
+
+#include <string.h> // memmove
+
+// preconditions: end > ptr  -> data available to read
+//                end = ptr  -> halt to receive more data
+//                end = NULL -> end of file
+typedef struct {
+    uint8_t* ptr, * end;
+} Reader;
+
+CORO_DECLARE(uint8_t, read_single_byte);
+uint8_t read_single_byte(Coro_Stack* coro, Reader* reader) {
+    // "coro" is the name of a pointer to the current coroutine stack
+    // & state; this variable must be defined before CORO_BEGIN
+
+    CORO_BEGIN(read_single_byte) {
+        while UNLIKELY(reader->end)
+            CORO_YIELD(0);
+    } CORO_END(reader->ptr++[0]);
+}
+
+CORO_DECLARE(uint32_t, decode_leb_u32, {
+    uint32_t result : 28;
+    uint32_t shift : 4;
+});
+uint32_t decode_leb_u32(Coro_Stack* coro, Reader* reader) {
+    uint32_t result;
+    CORO_BEGIN(decode_leb_u32) {
+        uint8_t byte;
+        uint32_t shift = 0;
+        result = 0;
+
+        do {
+            // "coro_next" is the name of the next coroutine call frame
+            // to pass as the "coro" parameter for stackless coroutine
+            // functions
+            byte = read_single_byte(coro_next, reader);
+
+            if UNLIKELY(coro_next[0]) /* non-zero = yielded */ {
+                // "frame" is the name of the current coroutine frame to
+                // save and restore local variables
+                frame->result = result & 0x0fffffffu;
+                frame->shift = shift / 7;
+                CORO_YIELD(0);
+                result = frame->result;
+                shift = frame->shift * 7;
+            } else {
+                result |= (byte & 0x7f) << shift;
+            }
+        } while (coro_next[0] || ((byte & 0x80) && (shift += 7) < 35);
+
+        if (byte & 0x80) // decode error!
+            result = 0;
+    } CORO_END(result);
+}
+
+```
 
 ## `thread.h`
 Multiplatform single-file C11-compatible preemptive multitasking library.
