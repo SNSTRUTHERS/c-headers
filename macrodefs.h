@@ -3191,6 +3191,8 @@
 #           define __macrodefs_extension___cxx_implicit_moves__ 1
 #           define __macrodefs_extension_cxx_noexcept 1
 #           define __macrodefs_extension___cxx_noexcept__ 1
+#           define __macrodefs_extension_cxx_nullptr 1
+#           define __macrodefs_extension___cxx_nullptr__ 1
 #           define __macrodefs_extension_cxx_range_for 1
 #           define __macrodefs_extension___cxx_range_for__ 1
 #           define __macrodefs_extension_cxx_unrestricted_unions 1
@@ -3671,7 +3673,7 @@
  */
 #if __has_attribute(malloc)
     /* GCC 11+ has extended malloc attribute w/ specified deallocator */
-#   if GCC_PREREQ(110000) && !defined(__INTELLISENSE__)
+#   if GCC_PREREQ(110000)
 #       define ALLOCATOR(deallocator) \
             __attribute__((__malloc__, __malloc__(deallocator)))
 #   else
