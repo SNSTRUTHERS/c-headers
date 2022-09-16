@@ -74,6 +74,11 @@ etc.).
   `struct` and `union` keywords followed by parenthesis (e.g.
   `struct(struct timespec)`; only works in C99+ (or with GNU extensions) and
   C++11+.
+- Cross-language casting
+  - `CAST` -> `static_cast` or C value cast
+  - `RCAST` -> `reinterpret_cast` or C bytewise case
+  - `CCAST` -> `const_cast`
+  - `FCAST` -> function pointer cast
 
 ## `atomics.h`
 Cross-compiler header-only atomic operations library.
