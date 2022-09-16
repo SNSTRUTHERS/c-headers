@@ -5294,6 +5294,40 @@
 #   undef le64toh
 #endif
 
+/* == CASTING =============================================================== */
+
+#if CPP_PREREQ(1L)
+#   define CAST(T, v) static_cast<T>(v)
+#   define CCAST(T, v) const_cast<T>(v)
+#   define RCAST(T, v) reinterpret_cast<T>(v)
+#else
+#   define CAST(T, v) (T)(v)
+#   define CCAST(T, value) (T)(uintptr_t)(value)
+#   define RCAST(T, v) (T)(void*)(v)
+#endif
+#if GCC_PREREQ(1L) && !CLANG_PREREQ(1L)
+#   define _FCAST2(FuncT, v) __extension__({ \
+        FuncT _fn = CAST(FuncT, v); _fn; })
+#   define _FCAST4(RetT, callconv, ArgsT, v) __extension__ ({ \
+        RetT (callconv* _fn)ArgsT = CAST(RetT(callconv*)ArgsT)(v);  _fn; })
+#else
+#   define _FCAST2(FuncT, v) CAST(FuncT, v)
+#   define _FCAST4(RetT, callconv, ArgsT, v) \
+        __extension__ CAST(RetT(callconv*)ArgsT)(v)
+#endif
+#define _FCAST3(RetT, ArgsT, v) _FCAST4(RetT, CDECL, ArgsT, v)
+#define FCAST(...) CONCATENATE(_FCAST, VARGCOUNT(__VA_ARGS__))(__VA_ARGS__)
+
+/* == LITERAL HELPERS ======================================================= */
+
+#ifdef __cpp_initializer_lists /* brace initilaizers */
+#   define struct(T) T
+#   define union(T) T
+#elif STDC_PREREQ(199901L) || GCC_PREREQ(30000) /* compound literals */
+#   define struct(T) __extension__ (T)
+#   define union(T) __extension__ (T)
+#endif
+
 /* ========================================================================== */
 
 #endif /* !MACRODEFS_ONLY */

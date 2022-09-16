@@ -70,6 +70,10 @@ etc.).
         if the end of the argument list is reached.
         - *e.g.*: `VARGEACH(VARGPACK, (1, 2, '3', , 4,), COMMA)` expands to
           the tokens: `1 , 2 , '3' , 4 `.
+- Compound literal and list initializer cross-compatibility macros via using
+  `struct` and `union` keywords followed by parenthesis (e.g.
+  `struct(struct timespec)`; only works in C99+ (or with GNU extensions) and
+  C++11+.
 
 ## `atomics.h`
 Cross-compiler header-only atomic operations library.
