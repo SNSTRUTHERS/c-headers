@@ -1,7 +1,7 @@
 /**
  * @file macrodefs.h
  * @author Simon Bolivar
- * @date 13 Sep 2022
+ * @date 15 Sep 2022
  * 
  * @brief File containing general-use definitions, annotations, and
  *        macro definitions.
@@ -242,6 +242,7 @@
 #   define _PASTE3(_0, _1, _2) __PASTE3_(_0, _1, _2)
 #   define _PASTE5(_0, _1, _2, _3, _4) _0 ## _1 ## _2 ## _3 ## _4
 #   define _IS_EMPTY_CASE_0001 ,
+#   define _INVOKE(a, b) a b
 #   define _INVOKE_IF_NOT_LAST_11(x)
 #   define _INVOKE_IF_NOT_LAST_10(x)
 #   define _INVOKE_IF_NOT_LAST_01(x)
@@ -289,11 +290,13 @@
         __extension__
 #       define __TUPHEAD_(x, ...) x
         ;__extension__
-#       define _TUPHEAD(...) VARGPACK(__TUPHEAD_(__VA_ARGS__,))
+#       define _TUPHEAD(...) _PASTE3(,PICK,VARGEMPTY(__VA_ARGS__))( \
+            VARGPACK(__TUPHEAD_(__VA_ARGS__,)),VARGPACK(__VA_ARGS__))
         ;__extension__
 #       define __TUPTAIL_(x, ...) (__VA_ARGS__)
         ;__extension__
-#       define _TUPTAIL(...) VARGPACK(__TUPTAIL_(__VA_ARGS__))
+#       define _TUPTAIL(...) _PASTE3(,PICK,_HAS_COMMA(__VA_ARGS__))( \
+            (),VARGPACK(__TUPTAIL_(__VA_ARGS__)))
         ;__extension__
 #       define _ARG_100(_,\
             _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85, \
@@ -308,7 +311,7 @@
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ,1, \
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, \
             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0))
         ;__extension__
 #       define _TRIGGER_PARENTHESIS_(...) ,
@@ -326,7 +329,7 @@
             80,79,78,77,76,75,74,73,72,71,70,69,68,67,66,65,64,63,62,61, \
             60,59,58,57,56,55,54,53,52,51,50,49,48,47,46,45,44,43,42,41, \
             40,39,38,37,36,35,34,33,32,31,30,29,28,27,26,25,24,23,22,21, \
-            20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1))
+            20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0))
         ;__extension__
 #       define VARGCOUNT(...) CONCATENATE( \
             _VARGCOUNT_EMPTY_, _IS_EMPTY(__VA_ARGS__))(__VA_ARGS__)
@@ -1032,15 +1035,19 @@
         )(sep) \
         _VARGAPPLY99(name, extra, sep, _TUPTAIL args)
 
-#   define VARGAPPLY(name, extra, args, ...) \
-        CONCATENATE(_VARGAPPLY, VARGCOUNT args)( \
+
+#   define __VARGAPPLY2(name, extra, args, sep) \
+        CONCATENATE(_VARGAPPLY, VARGCOUNT args)(name, extra, sep, args)
+#   define __VARGAPPLY1(name, extra, args) \
+        __VARGAPPLY2(name, extra, args, SPACE)
+#   define VARGAPPLY(name, extra, ...) \
+        CONCATENATE(__VARGAPPLY, VARGCOUNT(__VA_ARGS__))( \
             name, \
             extra, \
-            CONCATENATE(PICK, VARGEMPTY(__VA_ARGS__))(__VA_ARGS__, SPACE), \
-            args)
+            __VA_ARGS__)
 
 #   define _VARGEACH(name, args) name(args)
-#   define VARGEACH(name, args, sep) VARGAPPLY(_VARGEACH, name, args, sep)
+#   define VARGEACH(name, ...) VARGAPPLY(_VARGEACH, name, __VA_ARGS__)
 #endif
 
 #endif
