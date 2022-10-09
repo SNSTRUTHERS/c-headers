@@ -254,7 +254,7 @@
 #   ifdef _GNUC_VA_ARGS
 #       define __TUPHEAD_(x, args...) x
 #       define _TUPHEAD(args...) VARGPACK(__TUPHEAD_(args,))
-#       define __TUPTAIL_(x, args...) (args)
+#       define __TUPTAIL_(x, args...) args
 #       define _TUPTAIL(args...) VARGPACK(__TUPTAIL_(args))
 #       define _ARG_100(_,\
             _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85, \
@@ -293,10 +293,10 @@
 #       define _TUPHEAD(...) _PASTE3(,PICK,VARGEMPTY(__VA_ARGS__))( \
             VARGPACK(__TUPHEAD_(__VA_ARGS__,)),VARGPACK(__VA_ARGS__))
         ;__extension__
-#       define __TUPTAIL_(x, ...) (__VA_ARGS__)
+#       define __TUPTAIL_(x, ...) __VA_ARGS__
         ;__extension__
 #       define _TUPTAIL(...) _PASTE3(,PICK,_HAS_COMMA(__VA_ARGS__))( \
-            (),VARGPACK(__TUPTAIL_(__VA_ARGS__)))
+            ,VARGPACK(__TUPTAIL_(__VA_ARGS__)))
         ;__extension__
 #       define _ARG_100(_,\
             _100,_99,_98,_97,_96,_95,_94,_93,_92,_91,_90,_89,_88,_87,_86,_85, \
@@ -345,695 +345,695 @@
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY1(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY1(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-		_VARGAPPLY1(name, extra, sep, _TUPTAIL args)
+		_VARGAPPLY1(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY3(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY2(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY2(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY2(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY2(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY4(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY3(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY3(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY3(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY3(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY5(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY4(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY4(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY4(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY4(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY6(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY5(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY5(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY5(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY5(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY7(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY6(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY6(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY6(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY6(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY8(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY7(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY7(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY7(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY7(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY9(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY8(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY8(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY8(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY8(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY10(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY9(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY9(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY9(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY9(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY11(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY10(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY10(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY10(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY10(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY12(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY11(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY11(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY11(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY11(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY13(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY12(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY12(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY12(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY12(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY14(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY13(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY13(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY13(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY13(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY15(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY14(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY14(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY14(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY14(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY16(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY15(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY15(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY15(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY15(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY17(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY16(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY16(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY16(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY16(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY18(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY17(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY17(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY17(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY17(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY19(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY18(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY18(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY18(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY18(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY20(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY19(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY19(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY19(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY19(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY21(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY20(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY20(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY20(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY20(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY22(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY21(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY21(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY21(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY21(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY23(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY22(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY22(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY22(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY22(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY24(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY23(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY23(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY23(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY23(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY25(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY24(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY24(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY24(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY24(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY26(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY25(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY25(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY25(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY25(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY27(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY26(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY26(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY26(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY26(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY28(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY27(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY27(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY27(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY27(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY29(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY28(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY28(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY28(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY28(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY30(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY29(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY29(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY29(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY29(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY31(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY30(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY30(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY30(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY30(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY32(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY31(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY31(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY31(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY31(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY33(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY32(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY32(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY32(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY32(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY34(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY33(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY33(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY33(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY33(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY35(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY34(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY34(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY34(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY34(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY36(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY35(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY35(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY35(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY35(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY37(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY36(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY36(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY36(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY36(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY38(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY37(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY37(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY37(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY37(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY39(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY38(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY38(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY38(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY38(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY40(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY39(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY39(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY39(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY39(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY41(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY40(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY40(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY40(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY40(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY42(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY41(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY41(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY41(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY41(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY43(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY42(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY42(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY42(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY42(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY44(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY43(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY43(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY43(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY43(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY45(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY44(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY44(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY44(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY44(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY46(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY45(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY45(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY45(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY45(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY47(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY46(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY46(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY46(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY46(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY48(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY47(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY47(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY47(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY47(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY49(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY48(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY48(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY48(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY48(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY50(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY49(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY49(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY49(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY49(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY51(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY50(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY50(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY50(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY50(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY52(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY51(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY51(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY51(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY51(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY53(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY52(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY52(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY52(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY52(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY54(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY53(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY53(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY53(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY53(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY55(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY54(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY54(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY54(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY54(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY56(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY55(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY55(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY55(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY55(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY57(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY56(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY56(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY56(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY56(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY58(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY57(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY57(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY57(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY57(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY59(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY58(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY58(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY58(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY58(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY60(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY59(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY59(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY59(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY59(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY61(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY60(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY60(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY60(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY60(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY62(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY61(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY61(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY61(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY61(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY63(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY62(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY62(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY62(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY62(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY64(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY63(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY63(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY63(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY63(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY65(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY64(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY64(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY64(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY64(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY66(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY65(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY65(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY65(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY65(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY67(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY66(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY66(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY66(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY66(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY68(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY67(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY67(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY67(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY67(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY69(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY68(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY68(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY68(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY68(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY70(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY69(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY69(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY69(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY69(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY71(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY70(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY70(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY70(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY70(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY72(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY71(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY71(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY71(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY71(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY73(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY72(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY72(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY72(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY72(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY74(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY73(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY73(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY73(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY73(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY75(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY74(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY74(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY74(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY74(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY76(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY75(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY75(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY75(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY75(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY77(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY76(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY76(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY76(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY76(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY78(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY77(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY77(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY77(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY77(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY79(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY78(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY78(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY78(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY78(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY80(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY79(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY79(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY79(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY79(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY81(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY80(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY80(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY80(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY80(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY82(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY81(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY81(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY81(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY81(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY83(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY82(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY82(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY82(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY82(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY84(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY83(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY83(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY83(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY83(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY85(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY84(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY84(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY84(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY84(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY86(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY85(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY85(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY85(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY85(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY87(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY86(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY86(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY86(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY86(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY88(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY87(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY87(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY87(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY87(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY89(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY88(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY88(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY88(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY88(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY90(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY89(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY89(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY89(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY89(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY91(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY90(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY90(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY90(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY90(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY92(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY91(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY91(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY91(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY91(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY93(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY92(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY92(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY92(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY92(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY94(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY93(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY93(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY93(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY93(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY95(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY94(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY94(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY94(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY94(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY96(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY95(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY95(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY95(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY95(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY97(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY96(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY96(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY96(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY96(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY98(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY97(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY97(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY97(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY97(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY99(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY98(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY98(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY98(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY98(name, extra, sep, (_TUPTAIL args))
 #   define _VARGAPPLY100(name, extra, sep, args) \
         name(extra, _TUPHEAD args) \
         _PASTE3(_INVOKE_IF_NOT_LAST_, \
             VARGEMPTY(name(extra, _TUPHEAD args)), \
-            VARGEMPTY(_VARGAPPLY99(name, extra, sep, _TUPTAIL args)) \
+            VARGEMPTY(_VARGAPPLY99(name, extra, sep, (_TUPTAIL args))) \
         )(sep) \
-        _VARGAPPLY99(name, extra, sep, _TUPTAIL args)
+        _VARGAPPLY99(name, extra, sep, (_TUPTAIL args))
 
 
 #   define __VARGAPPLY2(name, extra, args, sep) \
