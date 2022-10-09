@@ -3377,6 +3377,16 @@
 
 /* == C++ FEATURE DETECTION MACROS ========================================== */
 
+#if CPP_PREREQ(202002L) || (CPP_PREREQ(1L) && __has_include(<version>))
+#   include <version>
+#   define _FEATURE_TEST_MACROS_DEFINED 1
+#   define _LIB_FEATURE_TEST_MACROS_DEFINED 1
+#elif CPP_PREREQ(1L)
+#   include <ciso646>
+#else
+#   include <iso646.h>
+#endif
+
 #if CPP_PREREQ(1L) && !(GCC_PREREQ(50000) || CLANG_PREREQ(30400) \
     || MSVC_PREREQ(1915)) && !defined(_FEATURE_TEST_MACROS_DEFINED)
 #   define _FEATURE_TEST_MACROS_DEFINED 1
@@ -3500,8 +3510,101 @@
 #   if GCC_PREREQ(70000) || CLANG_PREREQ(40000) || MSVC_PREREQ(1914)
 #       define __cpp_variadic_using 201611L
 #   endif
-#elif !defined(_FEATURE_TEST_MACROS_DEFINED)
-#   define _FEATURE_TEST_MACROS_DEFINED 1
+#   if defined(__GLIBCPP__) && !defined(__GLIBCXX__)
+#       define __GLIBCXX__ __GLIBCPP__
+#   endif
+#endif
+
+#if (CPP_PREREQ(1L) && (defined(_LIBCPP_VERSION) || defined(__GLIBCXX__) \
+    || MSVC_PREREQ(1))) \
+    && !defined(_LIB_FEATURE_TEST_MACROS_DEFINED)
+#   define _LIB_FEATURE_TEST_MACROS_DEFINED 1
+#   if (__GLIBCXX__ >= 20190503 || MSVC_PREREQ(1914)) \
+        && !defined(__cpp_lib_execution)
+#       define __cpp_lib_execution 201603L
+#       define __cpp_lib_parallel_algorithm 201603L
+#   endif
+#   if __GLIBCXX__ >= 20220506 || MSVC_PREREQ(1911)
+#       define __cpp_lib_hardware_interference_size 201703L
+#   endif
+#   if __GLIBCXX__ >= 20180502 || MSVC_PREREQ(1924)
+#       define __cpp_lib_to_chars 201611L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 11000 \
+        || MSVC_PREREQ(1912)
+#       define __cpp_lib_shared_ptr_arrays 201611L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 8000 \
+        || MSVC_PREREQ(1912)
+#       define __cpp_lib_node_extract 201606L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 4000 \
+        || MSVC_PREREQ(1910)
+#       define __cpp_lib_any 201606L
+#       define __cpp_lib_optional 201606L
+#       define __cpp_lib_variant 201606L
+#   endif
+#   if __GLIBCXX__ >= 20170502
+#       define __cpp_lib_boyer_moore_searcher 201603L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 6000 \
+        || MSVC_PREREQ(1911)
+#       define __cpp_lib_has_unique_object_representations 201606L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 5000 \
+        || MSVC_PREREQ(1911)
+#       define __cpp_lib_byte 201603L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 3900 \
+        || MSVC_PREREQ(1912)
+#       define __cpp_lib_not_fn 201603L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 3900 \
+        || MSVC_PREREQ(1910)
+#       define __cpp_lib_make_from_tuple 201606L
+#   endif
+#   if __GLIBCXX__ >= 20170502 || _LIBCPP_VERSION >= 3900 \
+        || _MSC_FULL_VER >= 190024210
+#       define __cpp_lib_clamp 201603L
+#   endif
+#   if __GLIBCXX__ >= 20160427 || _LIBCPP_VERSION >= 3800 \
+        || _MSC_FULL_VER >= 190023918L
+#       define __cpp_lib_logical_traits 201510L
+#   endif
+#   if __GLIBCXX__ >= 20160427 || _LIBCPP_VERSION >= 3700 \
+        || _MSC_FULL_VER >= 190023918L
+#       define __cpp_lib_shared_mutex 201505L
+#   endif
+#   if __GLIBCXX__ >= 20160427 || _LIBCPP_VERSION >= 3600 \
+        || MSVC_PREREQ(1900)
+#       define __cpp_lib_void_t 201411L
+#   endif
+#   if __GLIBCXX__ >= 20160427 || _LIBCPP_VERSION >= 3700 \
+        || MSVC_PREREQ(1900)
+#       define __cpp_lib_bool_constant 201505L
+#       define __cpp_lib_uncaught_exceptions 201411L
+#   endif
+#   if __GLIBCXX >= 20140422 || _LIBCPP_VERSION >= 3400 \
+        || MSVC_PREREQ(1800)
+#       define __cpp_lib_make_unique 201304L
+#   endif
+#   if __GLIBCXX__ >= 20150422 || _LIBCPP_VERSION >= 3400 \
+        || MSVC_PREREQ(1900)
+#       define __cpp_lib_chrono_udls 201304L
+#       define __cpp_lib_exchange_function 201304L
+#       define __cpp_lib_generic_associative_lookup 201304L
+#       define __cpp_lib_integer_sequence 201304L
+#       define __cpp_lib_integral_constant_callable 201304L
+#       define __cpp_lib_null_iterators 201304L
+#       define __cpp_lib_robust_nonmodifying_seq_ops 201304L
+#       define __cpp_lib_shared_timed_mutex 201304L
+#       define __cpp_lib_string_udls 201304L
+#       define __cpp_lib_quoted_string_io 201304L
+#   endif
+#   if __GLIBCX__ >= 20150422 || defined(_LIBCPP_VERSION) \
+        || MSVC_PREREQ(1900)
+#       define __cpp_lib_result_of_sfinae 201210L
+#   endif
 #endif
 
 /* == DYNAMIC LIBRARY IMPORT/EXPORT ANNOTATIONS ============================= */
