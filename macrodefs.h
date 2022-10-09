@@ -1626,6 +1626,8 @@
 #       define __MACRODEFS_MSVC "2022 17.1"
 #   elif _MSC_VER == 1932
 #       define __MACRODEFS_MSVC "2022 17.2"
+#   elif _MSC_VER == 1933
+#       define __MACRODEFS_MSVC "2022 17.3"
 #   endif
 #   ifdef __MACRODEFS_MSVC
 #       define COMPILER_NAME "Microsoft Visual C/C++ " __MACRODEFS_MSVC
